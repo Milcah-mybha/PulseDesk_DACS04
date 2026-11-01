@@ -1,0 +1,41 @@
+# ===== BACKEND (Java Spring Boot) =====
+target/
+*.jar
+*.war
+*.class
+.mvn/
+
+# ===== ANDROID =====
+*.apk
+*.aab
+build/
+.gradle/
+local.properties
+
+# ===== AI SERVICE (Python) =====
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ===== BÍ MẬT - KHÔNG BAO GIỜ PUSH =====
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+google-services.json
+keystore.jks
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.iml
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== LOGS =====
+*.log
+logs/
