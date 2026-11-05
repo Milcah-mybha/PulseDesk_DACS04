@@ -12,9 +12,9 @@ import com.pulsedesk.app.network.SocketEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class ConversationsUiState(
@@ -25,23 +25,20 @@ data class ConversationsUiState(
     val lastReceivedEventMessage: String? = null
 )
 
-/**
- * ViewModel trong mô hình MVVM:
- * Quản lý trạng thái UI và tương tác với ConversationRepository (Room DB + Socket).
- */
-class ConversationsViewModel(
-    application: Application
-) : AndroidViewModel(application) {
-
-    private val repository = ConversationRepository(
-        conversationDao = AppDatabase.getInstance(application).conversationDao()
+class ConversationsViewModel(application: Application) : AndroidViewModel(application) {
+    private val db = AppDatabase.getInstance(application)
+    val repository = ConversationRepository(
+        conversationDao = db.conversationDao(),
+        chatMessageDao = db.chatMessageDao()
     )
 
     private val _selectedCategory = MutableStateFlow(ConversationCategory.ALL)
     private val _searchQuery = MutableStateFlow("")
     private val _lastEventMessage = MutableStateFlow<String?>(null)
+    private val _selectedConversation = MutableStateFlow<Conversation?>(null)
 
-    // Kết hợp luồng dữ liệu từ Room Database với bộ lọc tìm kiếm và danh mục
+    val selectedConversation: StateFlow<Conversation?> = _selectedConversation.asStateFlow()
+
     val uiState: StateFlow<ConversationsUiState> = combine(
         repository.conversations,
         _selectedCategory,
@@ -50,24 +47,28 @@ class ConversationsViewModel(
         _lastEventMessage
     ) { list, category, query, socketState, lastEvent ->
         ConversationsUiState(
-            filteredConversations = applyFilter(list, category, query),
+            filteredConversations = list.filter { conv ->
+                val matchCat = when (category) {
+                    ConversationCategory.ALL -> true
+                    ConversationCategory.UNREAD -> conv.unreadCount > 0
+                    ConversationCategory.VIP -> conv.isVip
+                    ConversationCategory.IN_PROGRESS -> conv.category == ConversationCategory.IN_PROGRESS
+                }
+                val matchQuery = query.isBlank() ||
+                        conv.customerName.contains(query, true) ||
+                        conv.topic.contains(query, true) ||
+                        conv.lastMessage.contains(query, true)
+                matchCat && matchQuery
+            },
             selectedCategory = category,
             searchQuery = query,
             socketState = socketState,
             lastReceivedEventMessage = lastEvent
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = ConversationsUiState()
-    )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ConversationsUiState())
 
     init {
         repository.start()
-        observeSocketEvents()
-    }
-
-    private fun observeSocketEvents() {
         viewModelScope.launch {
             repository.socketEvents.collect { event ->
                 when (event) {
@@ -81,46 +82,17 @@ class ConversationsViewModel(
         }
     }
 
-    fun selectCategory(category: ConversationCategory) {
-        _selectedCategory.value = category
-    }
-
-    fun onSearchQueryChanged(query: String) {
-        _searchQuery.value = query
-    }
-
-    fun markAsRead(conversationId: String) {
-        viewModelScope.launch {
-            repository.markAsRead(conversationId)
+    fun selectConversation(conversation: Conversation?) {
+        _selectedConversation.value = conversation
+        if (conversation != null) {
+            markAsRead(conversation.id)
         }
     }
 
-    fun simulateIncomingSocketMessage() {
-        viewModelScope.launch {
-            repository.simulateIncomingSocketMessage()
-        }
-    }
-
-    private fun applyFilter(
-        list: List<Conversation>,
-        category: ConversationCategory,
-        query: String
-    ): List<Conversation> {
-        return list.filter { conv ->
-            val matchesCategory = when (category) {
-                ConversationCategory.ALL -> true
-                ConversationCategory.UNREAD -> conv.unreadCount > 0
-                ConversationCategory.VIP -> conv.isVip
-                ConversationCategory.IN_PROGRESS -> conv.category == ConversationCategory.IN_PROGRESS
-            }
-            val matchesQuery = query.isBlank() ||
-                conv.customerName.contains(query, ignoreCase = true) ||
-                conv.topic.contains(query, ignoreCase = true) ||
-                conv.lastMessage.contains(query, ignoreCase = true)
-
-            matchesCategory && matchesQuery
-        }
-    }
+    fun selectCategory(category: ConversationCategory) { _selectedCategory.value = category }
+    fun onSearchQueryChanged(query: String) { _searchQuery.value = query }
+    fun markAsRead(conversationId: String) = viewModelScope.launch { repository.markAsRead(conversationId) }
+    fun simulateIncomingSocketMessage() = viewModelScope.launch { repository.simulateIncomingSocketMessage() }
 
     override fun onCleared() {
         super.onCleared()

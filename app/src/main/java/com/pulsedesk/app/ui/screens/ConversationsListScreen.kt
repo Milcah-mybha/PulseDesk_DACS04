@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +27,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -54,9 +57,10 @@ import com.pulsedesk.app.ui.components.GlassmorphicSearchBar
 import com.pulsedesk.app.ui.components.GlassmorphismTopAppBar
 import com.pulsedesk.app.ui.components.GlowingUnreadBadge
 import com.pulsedesk.app.ui.components.PulseDeskRootBackground
-import com.pulsedesk.app.ui.components.glassmorphism
 import com.pulsedesk.app.ui.theme.AmberVip
 import com.pulsedesk.app.ui.theme.AvatarColors
+import com.pulsedesk.app.ui.theme.GlassHighlight
+import com.pulsedesk.app.ui.theme.GlassSurface
 import com.pulsedesk.app.ui.theme.NeonCyan
 import com.pulsedesk.app.ui.theme.NeonGreen
 import com.pulsedesk.app.ui.theme.NeonPurple
@@ -77,10 +81,7 @@ fun ConversationsListScreen(
         uiState = uiState,
         onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
         onCategorySelected = { viewModel.selectCategory(it) },
-        onConversationClick = { conv ->
-            viewModel.markAsRead(conv.id)
-            onConversationClick(conv)
-        },
+        onConversationClick = onConversationClick,
         onSimulateSocketMessage = { viewModel.simulateIncomingSocketMessage() }
     )
 }
@@ -187,7 +188,6 @@ fun ConversationsListContent(
                         ),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        // Nút test cập nhật Badge từ Socket
                         item(key = "simulate_socket_banner") {
                             SimulateSocketBanner(onSimulate = onSimulateSocketMessage)
                         }
@@ -220,10 +220,23 @@ fun ConversationCardItem(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .glassmorphism(
+            .shadow(
+                elevation = if (conversation.unreadCount > 0) 12.dp else 6.dp,
                 shape = RoundedCornerShape(22.dp),
-                shadowElevation = if (conversation.unreadCount > 0) 12.dp else 6.dp,
-                shadowColor = if (conversation.unreadCount > 0) Color(0x3500F0FF) else Color(0x18000000)
+                spotColor = if (conversation.unreadCount > 0) Color(0x3500F0FF) else Color(0x18000000)
+            )
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(GlassSurface.copy(alpha = 0.22f), GlassSurface.copy(alpha = 0.06f))
+                )
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    listOf(GlassHighlight, Color(0x15FFFFFF), NeonCyan.copy(alpha = 0.25f))
+                ),
+                shape = RoundedCornerShape(22.dp)
             )
             .clickable(onClick = onClick)
             .padding(16.dp)
@@ -232,132 +245,127 @@ fun ConversationCardItem(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar
-            Box(modifier = Modifier.size(54.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(50.dp)
-                        .align(Alignment.Center)
-                        .clip(CircleShape)
-                        .background(Brush.linearGradient(gradientColors))
-                        .border(1.5.dp, Color.White.copy(alpha = 0.6f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = conversation.avatarInitials,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                if (conversation.isOnline) {
+                Box(modifier = Modifier.size(54.dp)) {
                     Box(
                         modifier = Modifier
-                            .size(14.dp)
-                            .align(Alignment.BottomEnd)
-                            .shadow(4.dp, CircleShape, spotColor = NeonGreen)
+                            .size(50.dp)
+                            .align(Alignment.Center)
                             .clip(CircleShape)
-                            .background(NeonGreen)
-                            .border(2.5.dp, Color(0xFF070B14), CircleShape)
-                    )
-                }
-            }
+                            .background(Brush.linearGradient(gradientColors))
+                            .border(1.5.dp, Color.White.copy(alpha = 0.6f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = conversation.avatarInitials,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
 
-            Spacer(modifier = Modifier.width(14.dp))
-
-            // Nội dung hội thoại
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = conversation.customerName,
-                        color = TextWhite,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-
-                    if (conversation.isVip) {
-                        Spacer(modifier = Modifier.width(6.dp))
+                    if (conversation.isOnline) {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(AmberVip.copy(alpha = 0.2f))
-                                .border(0.8.dp, AmberVip.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 5.dp, vertical = 1.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = null,
-                                    tint = AmberVip,
-                                    modifier = Modifier.size(10.dp)
-                                )
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Text(
-                                    text = "VIP",
-                                    color = AmberVip,
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Black
-                                )
-                            }
-                        }
+                                .size(14.dp)
+                                .align(Alignment.BottomEnd)
+                                .shadow(4.dp, CircleShape, spotColor = NeonGreen)
+                                .clip(CircleShape)
+                                .background(NeonGreen)
+                                .border(2.5.dp, Color(0xFF070B14), CircleShape)
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
-                // Tag chủ đề
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0x18FFFFFF))
-                        .border(0.5.dp, NeonCyan.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 7.dp, vertical = 2.dp)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = conversation.customerName,
+                            color = TextWhite,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+
+                        if (conversation.isVip) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(AmberVip.copy(alpha = 0.2f))
+                                    .border(0.8.dp, AmberVip.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = AmberVip,
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text(
+                                        text = "VIP",
+                                        color = AmberVip,
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x18FFFFFF))
+                            .border(0.5.dp, NeonCyan.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = conversation.topic,
+                            color = NeonCyan,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(5.dp))
+
                     Text(
-                        text = conversation.topic,
-                        color = NeonCyan,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
+                        text = conversation.lastMessage,
+                        color = if (conversation.unreadCount > 0) Color(0xFFF1F5F9) else TextMuted,
+                        fontSize = 13.5.sp,
+                        fontWeight = if (conversation.unreadCount > 0) FontWeight.Medium else FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-                // Tin nhắn gần nhất
-                Text(
-                    text = conversation.lastMessage,
-                    color = if (conversation.unreadCount > 0) Color(0xFFF1F5F9) else TextMuted,
-                    fontSize = 13.5.sp,
-                    fontWeight = if (conversation.unreadCount > 0) FontWeight.Medium else FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = conversation.timestamp,
+                        color = if (conversation.unreadCount > 0) NeonCyan else TextDim,
+                        fontSize = 11.5.sp,
+                        fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.Normal
+                    )
 
-            Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-            // Thời gian & Badge phát sáng
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = conversation.timestamp,
-                    color = if (conversation.unreadCount > 0) NeonCyan else TextDim,
-                    fontSize = 11.5.sp,
-                    fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.Normal
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                GlowingUnreadBadge(count = conversation.unreadCount)
+                    GlowingUnreadBadge(count = conversation.unreadCount)
+                }
             }
         }
-    }
 }
 
 @Composable
