@@ -1,5 +1,9 @@
 package com.pulsedesk.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,8 +19,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -27,6 +33,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -43,7 +50,10 @@ import kotlinx.coroutines.launch
 fun ChatDetailPane(
     conversation: Conversation?,
     messages: List<ChatMessage>,
-    onSendMessage: (String) -> Unit,
+    isCustomerTyping: Boolean = false,
+    autoReplyEnabled: Boolean = true,
+    onToggleAutoReply: () -> Unit = {},
+    onSendMessage: (text: String, senderType: MessageSenderType) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (conversation == null) {
@@ -79,6 +89,7 @@ fun ChatDetailPane(
     }
 
     var inputText by remember { mutableStateOf("") }
+    var currentSenderRole by remember { mutableStateOf(MessageSenderType.AGENT) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -91,9 +102,10 @@ fun ChatDetailPane(
         )
     }
 
-    LaunchedEffect(messages.size) {
+    // Tự động cuộn xuống khi có tin nhắn mới hoặc khi khách hàng bắt đầu gõ
+    LaunchedEffect(messages.size, isCustomerTyping) {
         if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+            listState.animateScrollToItem(messages.size)
         }
     }
 
@@ -103,7 +115,12 @@ fun ChatDetailPane(
             .glassmorphism(shape = RoundedCornerShape(22.dp))
     ) {
         // 1. Chat Header
-        ChatHeader(conversation = conversation)
+        ChatHeader(
+            conversation = conversation,
+            isTyping = isCustomerTyping,
+            autoReplyEnabled = autoReplyEnabled,
+            onToggleAutoReply = onToggleAutoReply
+        )
 
         // 2. Chat Message List
         Box(
@@ -120,6 +137,13 @@ fun ChatDetailPane(
             ) {
                 items(items = messages, key = { it.id }) { msg ->
                     ChatBubbleItem(message = msg)
+                }
+
+                // Hiệu ứng bong bóng "Khách hàng đang soạn tin..."
+                if (isCustomerTyping) {
+                    item(key = "typing_indicator") {
+                        CustomerTypingBubble(conversation = conversation)
+                    }
                 }
             }
         }
@@ -158,9 +182,9 @@ fun ChatDetailPane(
                         .background(Color(0x16FFFFFF))
                         .border(0.8.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(10.dp))
                         .clickable {
-                            onSendMessage(reply)
+                            onSendMessage(reply, MessageSenderType.AGENT)
                             scope.launch {
-                                if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+                                if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size)
                             }
                         }
                         .padding(horizontal = 10.dp, vertical = 5.dp)
@@ -175,11 +199,101 @@ fun ChatDetailPane(
             }
         }
 
-        // 4. Input Section với phím Enter gửi tin
+        // 4. Thanh chọn vai trò người gửi (Cho phép gửi 2 chiều: Tư vấn viên <-> Khách hàng)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Gửi tin với vai trò:",
+                    color = TextDim,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+
+                // Nút chọn Tư vấn viên
+                val isAgent = currentSenderRole == MessageSenderType.AGENT
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isAgent) NeonCyan.copy(alpha = 0.25f) else Color(0x12FFFFFF))
+                        .border(
+                            0.8.dp,
+                            if (isAgent) NeonCyan else Color.White.copy(alpha = 0.15f),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .clickable { currentSenderRole = MessageSenderType.AGENT }
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.SupportAgent,
+                            contentDescription = null,
+                            tint = if (isAgent) NeonCyan else TextDim,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Tư vấn viên",
+                            color = if (isAgent) TextWhite else TextDim,
+                            fontSize = 11.sp,
+                            fontWeight = if (isAgent) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+
+                // Nút chọn Khách hàng (Đóng vai khách hàng để test nhắn qua lại)
+                val isCust = currentSenderRole == MessageSenderType.CUSTOMER
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isCust) NeonPurple.copy(alpha = 0.25f) else Color(0x12FFFFFF))
+                        .border(
+                            0.8.dp,
+                            if (isCust) NeonPurple else Color.White.copy(alpha = 0.15f),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .clickable { currentSenderRole = MessageSenderType.CUSTOMER }
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = if (isCust) NeonPurple else TextDim,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${conversation.customerName} (Khách)",
+                            color = if (isCust) TextWhite else TextDim,
+                            fontSize = 11.sp,
+                            fontWeight = if (isCust) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
+
+            // Gợi ý phím tắt
+            Text(
+                text = "Enter để gửi • Shift+Enter xuống dòng",
+                color = TextDim,
+                fontSize = 10.5.sp
+            )
+        }
+
+        // 5. Input Section với phím Enter gửi tin
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 12.dp)
+                .padding(horizontal = 18.dp, vertical = 8.dp)
                 .glassmorphism(shape = RoundedCornerShape(18.dp), shadowElevation = 8.dp)
                 .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
@@ -189,8 +303,13 @@ fun ChatDetailPane(
             ) {
                 Box(modifier = Modifier.weight(1f)) {
                     if (inputText.isEmpty()) {
+                        val placeholder = if (currentSenderRole == MessageSenderType.AGENT) {
+                            "Nhập phản hồi tư vấn viên..."
+                        } else {
+                            "Nhập tin nhắn với tư cách khách hàng (${conversation.customerName})..."
+                        }
                         Text(
-                            text = "Nhập phản hồi tư vấn (Nhấn Enter để gửi, Shift+Enter xuống dòng)...",
+                            text = placeholder,
                             color = TextDim,
                             fontSize = 13.sp
                         )
@@ -199,7 +318,7 @@ fun ChatDetailPane(
                         value = inputText,
                         onValueChange = { inputText = it },
                         textStyle = TextStyle(color = TextWhite, fontSize = 13.5.sp),
-                        cursorBrush = SolidColor(NeonCyan),
+                        cursorBrush = SolidColor(if (currentSenderRole == MessageSenderType.AGENT) NeonCyan else NeonPurple),
                         maxLines = 4,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -208,7 +327,7 @@ fun ChatDetailPane(
                                     if (keyEvent.isShiftPressed) {
                                         false
                                     } else if (inputText.isNotBlank()) {
-                                        onSendMessage(inputText)
+                                        onSendMessage(inputText, currentSenderRole)
                                         inputText = ""
                                         true
                                     } else {
@@ -223,20 +342,21 @@ fun ChatDetailPane(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
+                val sendColor = if (currentSenderRole == MessageSenderType.AGENT) NeonCyan else NeonPurple
                 Box(
                     modifier = Modifier
                         .size(38.dp)
-                        .shadow(8.dp, CircleShape, spotColor = NeonCyan)
+                        .shadow(8.dp, CircleShape, spotColor = sendColor)
                         .clip(CircleShape)
                         .background(
                             if (inputText.isNotBlank()) {
-                                Brush.linearGradient(listOf(NeonCyan, Color(0xFF0055FF)))
+                                Brush.linearGradient(listOf(sendColor, Color(0xFF0055FF)))
                             } else {
                                 Brush.linearGradient(listOf(Color(0x3000F0FF), Color(0x300055FF)))
                             }
                         )
                         .clickable(enabled = inputText.isNotBlank()) {
-                            onSendMessage(inputText)
+                            onSendMessage(inputText, currentSenderRole)
                             inputText = ""
                         },
                     contentAlignment = Alignment.Center
@@ -254,7 +374,12 @@ fun ChatDetailPane(
 }
 
 @Composable
-private fun ChatHeader(conversation: Conversation) {
+private fun ChatHeader(
+    conversation: Conversation,
+    isTyping: Boolean,
+    autoReplyEnabled: Boolean,
+    onToggleAutoReply: () -> Unit
+) {
     val gradientColors = AvatarColors[conversation.avatarColorIndex % AvatarColors.size]
 
     Box(
@@ -315,10 +440,49 @@ private fun ChatHeader(conversation: Conversation) {
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.width(8.dp))
+                    if (isTyping) {
+                        Text(
+                            text = "• đang nhập...",
+                            color = NeonCyan,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    } else {
+                        Text(
+                            text = if (conversation.isOnline) "• Đang trực tuyến" else "• Ngoại tuyến",
+                            color = if (conversation.isOnline) NeonGreen else TextDim,
+                            fontSize = 10.5.sp
+                        )
+                    }
+                }
+            }
+
+            // Nút gạt bật/tắt phản hồi khách hàng tự động
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (autoReplyEnabled) NeonCyan.copy(alpha = 0.20f) else Color(0x18FFFFFF))
+                    .border(
+                        0.8.dp,
+                        if (autoReplyEnabled) NeonCyan.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.2f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clickable { onToggleAutoReply() }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Bolt,
+                        contentDescription = null,
+                        tint = if (autoReplyEnabled) NeonCyan else TextDim,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (conversation.isOnline) "• Đang trực tuyến" else "• Ngoại tuyến",
-                        color = if (conversation.isOnline) NeonGreen else TextDim,
-                        fontSize = 10.5.sp
+                        text = if (autoReplyEnabled) "Tự động phản hồi: BẬT" else "Tự động phản hồi: TẮT",
+                        color = if (autoReplyEnabled) NeonCyan else TextDim,
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
@@ -326,9 +490,112 @@ private fun ChatHeader(conversation: Conversation) {
     }
 }
 
+// Bong bóng "Khách hàng đang soạn tin" với 3 chấm nhấp nháy phát sáng
+@Composable
+private fun CustomerTypingBubble(conversation: Conversation) {
+    val gradientColors = AvatarColors[conversation.avatarColorIndex % AvatarColors.size]
+
+    Row(
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(top = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(Brush.linearGradient(gradientColors)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = conversation.avatarInitials,
+                color = Color.White,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .shadow(6.dp, RoundedCornerShape(16.dp, 16.dp, 16.dp, 3.dp), spotColor = Color(0x20000000))
+                .clip(RoundedCornerShape(16.dp, 16.dp, 16.dp, 3.dp))
+                .background(Color(0x25FFFFFF))
+                .border(1.dp, NeonCyan.copy(alpha = 0.4f), RoundedCornerShape(16.dp, 16.dp, 16.dp, 3.dp))
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            TypingDotsIndicator(color = NeonCyan)
+        }
+    }
+}
+
+// Animation 3 dấu chấm nhảy mềm mại
+@Composable
+private fun TypingDotsIndicator(color: Color = NeonCyan) {
+    val infiniteTransition = rememberInfiniteTransition(label = "dots")
+    val dot1Scale by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(tween(550, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "dot1"
+    )
+    val dot2Scale by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(tween(550, delayMillis = 180, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "dot2"
+    )
+    val dot3Scale by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(tween(550, delayMillis = 360, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "dot3"
+    )
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        listOf(dot1Scale, dot2Scale, dot3Scale).forEach { scale ->
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .clip(CircleShape)
+                    .background(color)
+            )
+        }
+    }
+}
+
 @Composable
 private fun ChatBubbleItem(message: ChatMessage) {
     val isAgent = message.senderType == MessageSenderType.AGENT
+    val isSystem = message.senderType == MessageSenderType.SYSTEM
+
+    if (isSystem) {
+        Box(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x1AFFFFFF))
+                    .border(0.6.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = message.message,
+                    color = TextDim,
+                    fontSize = 11.sp
+                )
+            }
+        }
+        return
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -354,7 +621,7 @@ private fun ChatBubbleItem(message: ChatMessage) {
                         Modifier
                             .shadow(6.dp, RoundedCornerShape(16.dp, 16.dp, 16.dp, 3.dp), spotColor = Color(0x20000000))
                             .clip(RoundedCornerShape(16.dp, 16.dp, 16.dp, 3.dp))
-                            .background(Color(0x20FFFFFF))
+                            .background(Color(0x22FFFFFF))
                             .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(16.dp, 16.dp, 16.dp, 3.dp))
                     }
                 )

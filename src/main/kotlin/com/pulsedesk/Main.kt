@@ -19,10 +19,16 @@ import com.pulsedesk.model.ChatMessage
 import com.pulsedesk.model.Conversation
 import com.pulsedesk.model.ConversationCategory
 import com.pulsedesk.model.MessageSenderType
+import com.pulsedesk.network.PulseSocketClient
 import com.pulsedesk.ui.components.*
 import com.pulsedesk.ui.screens.*
 import com.pulsedesk.ui.theme.PulseDeskTheme
 import com.pulsedesk.ui.theme.TextDim
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 fun main() = application {
     val windowState = rememberWindowState(
@@ -43,6 +49,8 @@ fun main() = application {
 
 @Composable
 fun PulseDeskApp() {
+    val scope = rememberCoroutineScope()
+
     // 1. Trạng thái điều hướng chính (Chats, AI Assistant, Settings)
     var currentNavTab by remember { mutableStateOf(DesktopNavTab.CHATS) }
 
@@ -53,15 +61,147 @@ fun PulseDeskApp() {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(ConversationCategory.ALL) }
 
-    // 4. Dữ liệu hội thoại mẫu
+    // 4. Trạng thái kết nối TCP Socket
+    var isTcpOnline by remember { mutableStateOf(false) }
+
+    // 5. Trạng thái khách hàng đang gõ & tự động phản hồi
+    var isCustomerTyping by remember { mutableStateOf(false) }
+    var autoReplyEnabled by remember { mutableStateOf(true) }
+
+    // 6. Dữ liệu hội thoại mẫu
     val conversationList = remember { mutableStateListOf(*MockData.conversations.toTypedArray()) }
     var selectedConversationId by remember { mutableStateOf<String?>(MockData.conversations.firstOrNull()?.id) }
 
-    // 5. Lịch sử tin nhắn được quan sát theo danh sách bất biến để recomposition luôn hoạt động
+    // 7. Lịch sử tin nhắn được quan sát theo danh sách bất biến để recomposition luôn hoạt động
     val chatMessages = remember {
         mutableStateMapOf<String, List<ChatMessage>>().apply {
             MockData.conversations.forEach { conv ->
                 put(conv.id, MockData.getMessagesFor(conv.id))
+            }
+        }
+    }
+
+    // 8. Tích hợp PulseSocketClient kết nối TCP Server thực tế (Port 8888)
+    val socketClient = remember {
+        PulseSocketClient(
+            onMessageReceived = { msg ->
+                val current = chatMessages[msg.conversationId] ?: emptyList()
+                chatMessages[msg.conversationId] = current + msg
+
+                val idx = conversationList.indexOfFirst { it.id == msg.conversationId }
+                if (idx != -1) {
+                    val isCurrentChat = msg.conversationId == selectedConversationId
+                    conversationList[idx] = conversationList[idx].copy(
+                        lastMessage = msg.message,
+                        timestamp = msg.timestamp,
+                        unreadCount = if (isCurrentChat || msg.senderType == MessageSenderType.AGENT) 0 else conversationList[idx].unreadCount + 1
+                    )
+                }
+            },
+            onConnectionStatusChanged = { status ->
+                isTcpOnline = status
+            }
+        )
+    }
+
+    // Thử kết nối TCP Socket ngầm
+    LaunchedEffect(Unit) {
+        socketClient.connect(host = "127.0.0.1", port = 8888)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            socketClient.disconnect()
+        }
+    }
+
+    // Hàm tạo câu trả lời tự động thông minh của khách hàng theo ngữ cảnh
+    fun generateSimulatedCustomerReply(agentText: String, conversation: Conversation): String {
+        val lower = agentText.lowercase()
+        return when {
+            lower.contains("kiểm tra") || lower.contains("đang xem") || lower.contains("chờ") ->
+                "Dạ vâng em cảm ơn anh, nhờ anh kiểm tra giúp em xem giao dịch đã hoàn tất chưa nhé."
+            lower.contains("mã") || lower.contains("giao dịch") || lower.contains("bill") ->
+                "Dạ mã giao dịch của em là #SME-${(1000..9999).random()}, anh tra cứu trên cổng thanh toán giúp em với nha."
+            lower.contains("khắc phục") || lower.contains("xong") || lower.contains("thành công") ->
+                "Tuyệt vời quá! Em vào thử lại thì đã thấy hoạt động bình thường rồi ạ. Cảm ơn đội ngũ PulseDesk nhiều nhé!"
+            lower.contains("giá") || lower.contains("chiết khấu") || lower.contains("gói") || lower.contains("hợp đồng") ->
+                "Gói bên mình nếu ký hợp đồng 1 năm thì có được tặng thêm tháng dịch vụ hoặc hỗ trợ triển khai API không anh?"
+            lower.contains("xin chào") || lower.contains("chào") || lower.contains("ạ") ->
+                "Dạ chào anh, em đang cần hỗ trợ gấp về phần cấu hình tài khoản doanh nghiệp SME ạ."
+            else -> {
+                val sampleReplies = listOf(
+                    "Dạ em đã nhận được thông tin phản hồi từ anh rồi ạ.",
+                    "Vâng anh, vậy bên kỹ thuật xử lý xong nhớ báo lại em qua đây nhé.",
+                    "Dạ em hiểu rồi, em sẽ chuyển thông tin này cho phòng kế toán đối chiếu ngay.",
+                    "Cảm ơn sự hỗ trợ nhiệt tình và nhanh chóng của PulseDesk ạ!",
+                    "Dạ ngoài ra em muốn hỏi thêm chút về chính sách bảo mật 2 lớp cho nhân viên bên em nữa."
+                )
+                sampleReplies.random()
+            }
+        }
+    }
+
+    // Hàm xử lý gửi tin nhắn 2 chiều (Tư vấn viên <-> Khách hàng)
+    fun handleSendMessage(text: String, senderType: MessageSenderType) {
+        val convId = selectedConversationId ?: return
+        val currentConv = conversationList.find { it.id == convId } ?: return
+        val nowTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+
+        val newMsg = ChatMessage(
+            id = "msg_${System.currentTimeMillis()}",
+            conversationId = convId,
+            senderType = senderType,
+            message = text,
+            timestamp = nowTime
+        )
+
+        val currentList = chatMessages[convId] ?: emptyList()
+        chatMessages[convId] = currentList + newMsg
+
+        // Cập nhật danh sách hội thoại
+        val idx = conversationList.indexOfFirst { it.id == convId }
+        if (idx != -1) {
+            conversationList[idx] = conversationList[idx].copy(
+                lastMessage = text,
+                timestamp = nowTime,
+                unreadCount = if (senderType == MessageSenderType.CUSTOMER && convId != selectedConversationId) {
+                    conversationList[idx].unreadCount + 1
+                } else 0
+            )
+        }
+
+        // Bắn tin nhắn qua TCP Socket nếu đang kết nối
+        socketClient.sendMessage(convId, senderType, text)
+
+        // Nếu gửi từ Tư vấn viên (AGENT) và chế độ tự động phản hồi bật -> Giả lập khách hàng đang gõ và trả lời lại
+        if (senderType == MessageSenderType.AGENT && autoReplyEnabled) {
+            scope.launch {
+                delay(800) // Đợi 800ms trước khi hiện đang gõ
+                isCustomerTyping = true
+                delay(1600) // Khách hàng soạn tin nhắn trong 1.6s
+                isCustomerTyping = false
+
+                val replyText = generateSimulatedCustomerReply(text, currentConv)
+                val replyTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                val customerMsg = ChatMessage(
+                    id = "cust_${System.currentTimeMillis()}",
+                    conversationId = convId,
+                    senderType = MessageSenderType.CUSTOMER,
+                    message = replyText,
+                    timestamp = replyTime
+                )
+
+                val updatedList = chatMessages[convId] ?: emptyList()
+                chatMessages[convId] = updatedList + customerMsg
+
+                val cIdx = conversationList.indexOfFirst { it.id == convId }
+                if (cIdx != -1) {
+                    conversationList[cIdx] = conversationList[cIdx].copy(
+                        lastMessage = replyText,
+                        timestamp = replyTime
+                    )
+                }
             }
         }
     }
@@ -97,7 +237,7 @@ fun PulseDeskApp() {
             // Yêu cầu 3: Thanh tiêu đề (App Bar) với PulseDesk, avatar nhân viên & chấm xanh Online phát sáng
             PulseDeskTopAppBar(
                 agentName = "Nguyễn CSKH (Agent #01)",
-                isTcpOnline = true
+                isTcpOnline = isTcpOnline
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -189,31 +329,15 @@ fun PulseDeskApp() {
                                             }
                                         }
 
-                                        // Cột 2: Khung chi tiết cuộc trò chuyện và gửi tin nhắn
+                                        // Cột 2: Khung chi tiết cuộc trò chuyện và gửi tin nhắn 2 chiều
                                         ChatDetailPane(
                                             conversation = selectedConversation,
                                             messages = activeMessages,
-                                            onSendMessage = { text ->
-                                                selectedConversationId?.let { convId ->
-                                                    val newMsg = ChatMessage(
-                                                        id = "msg_${System.currentTimeMillis()}",
-                                                        conversationId = convId,
-                                                        senderType = MessageSenderType.AGENT,
-                                                        message = text,
-                                                        timestamp = "Vừa xong"
-                                                    )
-                                                    val currentList = chatMessages[convId] ?: emptyList()
-                                                    chatMessages[convId] = currentList + newMsg
-                                                    
-                                                    // Cập nhật tin nhắn mới nhất trong danh sách hội thoại
-                                                    val idx = conversationList.indexOfFirst { it.id == convId }
-                                                    if (idx != -1) {
-                                                        conversationList[idx] = conversationList[idx].copy(
-                                                            lastMessage = text,
-                                                            timestamp = "Vừa xong"
-                                                        )
-                                                    }
-                                                }
+                                            isCustomerTyping = isCustomerTyping,
+                                            autoReplyEnabled = autoReplyEnabled,
+                                            onToggleAutoReply = { autoReplyEnabled = !autoReplyEnabled },
+                                            onSendMessage = { text, senderType ->
+                                                handleSendMessage(text, senderType)
                                             },
                                             modifier = Modifier.weight(1f)
                                         )
