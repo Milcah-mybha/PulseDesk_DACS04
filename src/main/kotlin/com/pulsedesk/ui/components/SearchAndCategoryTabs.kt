@@ -111,7 +111,7 @@ fun GlassMainCategoryTabs(
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        MainContentTab.values().forEach { tab ->
+        MainContentTab.entries.forEach { tab ->
             val isSelected = tab == selectedTab
             val count = if (tab == MainContentTab.ACTIVE_CHATS) activeChatsCount else kbArticlesCount
 
@@ -171,7 +171,7 @@ fun GlassFilterPills(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        ConversationCategory.values().forEach { category ->
+        ConversationCategory.entries.forEach { category ->
             val isSelected = category == selectedCategory
             Box(
                 modifier = Modifier

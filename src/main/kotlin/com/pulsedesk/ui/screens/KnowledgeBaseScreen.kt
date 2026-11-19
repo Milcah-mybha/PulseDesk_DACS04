@@ -8,11 +8,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,11 +32,13 @@ fun KnowledgeBaseScreen(
     onArticleClick: (KnowledgeItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val filtered = articles.filter {
-        searchQuery.isBlank() ||
-                it.title.contains(searchQuery, true) ||
-                it.summary.contains(searchQuery, true) ||
-                it.tags.any { tag -> tag.contains(searchQuery, true) }
+    val filtered = remember(articles, searchQuery) {
+        articles.filter {
+            searchQuery.isBlank() ||
+                    it.title.contains(searchQuery, true) ||
+                    it.summary.contains(searchQuery, true) ||
+                    it.tags.any { tag -> tag.contains(searchQuery, true) }
+        }
     }
 
     LazyColumn(

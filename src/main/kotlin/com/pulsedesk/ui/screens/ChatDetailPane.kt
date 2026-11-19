@@ -82,7 +82,7 @@ fun ChatDetailPane(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    val quickReplies = remember(conversation.id) {
+    val quickReplies = remember {
         listOf(
             "Em đang kiểm tra log hệ thống cho anh rồi nhé!",
             "Anh vui lòng gửi lại mã giao dịch để em đối soát ngay.",
@@ -137,7 +137,7 @@ fun ChatDetailPane(
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color(0x229D4EDD))
                     .border(0.8.dp, NeonPurple.copy(alpha = 0.7f), RoundedCornerShape(10.dp))
-                .padding(horizontal = 8.dp, vertical = 5.dp)
+                    .padding(horizontal = 8.dp, vertical = 5.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -207,11 +207,11 @@ fun ChatDetailPane(
                                 if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Enter) {
                                     if (keyEvent.isShiftPressed) {
                                         false
+                                    } else if (inputText.isNotBlank()) {
+                                        onSendMessage(inputText)
+                                        inputText = ""
+                                        true
                                     } else {
-                                        if (inputText.isNotBlank()) {
-                                            onSendMessage(inputText)
-                                            inputText = ""
-                                        }
                                         true
                                     }
                                 } else {
@@ -260,11 +260,7 @@ private fun ChatHeader(conversation: Conversation) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                width = 0.dp,
-                color = Color.Transparent,
-                shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
-            )
+            .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
             .background(Color(0x18FFFFFF))
             .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {

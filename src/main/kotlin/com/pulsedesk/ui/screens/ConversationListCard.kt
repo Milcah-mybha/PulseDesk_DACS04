@@ -64,7 +64,10 @@ fun ConversationListCard(
                 ),
                 shape = RoundedCornerShape(20.dp)
             )
-            .clickable(onClick = onClick)
+            .clickable(
+                role = androidx.compose.ui.semantics.Role.Button,
+                onClick = onClick
+            )
             .padding(14.dp)
     ) {
         Row(

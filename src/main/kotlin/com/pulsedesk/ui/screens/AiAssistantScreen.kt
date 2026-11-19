@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pulsedesk.data.MockData
@@ -45,6 +46,12 @@ fun AiAssistantScreen(
     var inputQuery by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
     val suggestedQuestions = listOf(
         "Quy trình xử lý sự cố lỗi kết nối 502?",
         "Chính sách chiết khấu hợp đồng gói Enterprise?",
@@ -54,13 +61,13 @@ fun AiAssistantScreen(
     fun handleSend(query: String) {
         if (query.isBlank()) return
         val userMsg = AiAssistantMessage(
-            id = System.currentTimeMillis().toString(),
+            id = "user_${java.util.UUID.randomUUID()}",
             isUser = true,
             text = query,
             timestamp = "Vừa xong"
         )
         val botMsg = AiAssistantMessage(
-            id = (System.currentTimeMillis() + 1).toString(),
+            id = "bot_${java.util.UUID.randomUUID()}",
             isUser = false,
             text = "Dựa trên tài liệu hệ thống nội bộ SME PulseDesk, câu hỏi: \"$query\" đã được đối soát qua RAG Engine.\n\nThông tin tóm lược: Hệ thống CSKH áp dụng quy trình xử lý ticket cấp 1 trong 15 phút và tự động phân luồng qua hàng đợi dự phòng khi phát hiện sự cố cổng thanh toán hoặc hóa đơn điện tử.",
             timestamp = "Vừa xong",
@@ -294,7 +301,10 @@ private fun AiMessageBubble(message: AiAssistantMessage) {
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.MenuBook,
                                             contentDescription = null,
@@ -307,12 +317,16 @@ private fun AiMessageBubble(message: AiAssistantMessage) {
                                                 text = citation.title,
                                                 color = Color.White,
                                                 fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
                                                 text = citation.section,
                                                 color = TextDim,
-                                                fontSize = 10.sp
+                                                fontSize = 10.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                     }

@@ -55,13 +55,13 @@ fun PulseDeskApp() {
 
     // 4. Dữ liệu hội thoại mẫu
     val conversationList = remember { mutableStateListOf(*MockData.conversations.toTypedArray()) }
-    var selectedConversationId by remember { mutableStateOf<String?>("conv_1") }
+    var selectedConversationId by remember { mutableStateOf<String?>(MockData.conversations.firstOrNull()?.id) }
 
-    // 5. Lịch sử tin nhắn của hội thoại hiện tại
+    // 5. Lịch sử tin nhắn được quan sát theo danh sách bất biến để recomposition luôn hoạt động
     val chatMessages = remember {
-        mutableStateMapOf<String, MutableList<ChatMessage>>().apply {
+        mutableStateMapOf<String, List<ChatMessage>>().apply {
             MockData.conversations.forEach { conv ->
-                put(conv.id, MockData.getMessagesFor(conv.id).toMutableList())
+                put(conv.id, MockData.getMessagesFor(conv.id))
             }
         }
     }
@@ -69,19 +69,23 @@ fun PulseDeskApp() {
     val selectedConversation = conversationList.find { it.id == selectedConversationId }
     val activeMessages = selectedConversationId?.let { chatMessages[it] } ?: emptyList()
 
-    // Lọc danh sách hội thoại
-    val filteredConversations = conversationList.filter { conv ->
-        val matchCat = when (selectedCategory) {
-            ConversationCategory.ALL -> true
-            ConversationCategory.UNREAD -> conv.unreadCount > 0
-            ConversationCategory.VIP -> conv.isVip
-            ConversationCategory.IN_PROGRESS -> conv.category == ConversationCategory.IN_PROGRESS
+    // Lọc danh sách hội thoại tối ưu với derivedStateOf
+    val filteredConversations by remember {
+        derivedStateOf {
+            conversationList.filter { conv ->
+                val matchCat = when (selectedCategory) {
+                    ConversationCategory.ALL -> true
+                    ConversationCategory.UNREAD -> conv.unreadCount > 0
+                    ConversationCategory.VIP -> conv.isVip
+                    ConversationCategory.IN_PROGRESS -> conv.category == ConversationCategory.IN_PROGRESS
+                }
+                val matchQuery = searchQuery.isBlank() ||
+                        conv.customerName.contains(searchQuery, true) ||
+                        conv.topic.contains(searchQuery, true) ||
+                        conv.lastMessage.contains(searchQuery, true)
+                matchCat && matchQuery
+            }
         }
-        val matchQuery = searchQuery.isBlank() ||
-                conv.customerName.contains(searchQuery, true) ||
-                conv.topic.contains(searchQuery, true) ||
-                conv.lastMessage.contains(searchQuery, true)
-        matchCat && matchQuery
     }
 
     PulseDeskRootBackground {
@@ -91,7 +95,7 @@ fun PulseDeskApp() {
                 .padding(20.dp)
         ) {
             // Yêu cầu 3: Thanh tiêu đề (App Bar) với PulseDesk, avatar nhân viên & chấm xanh Online phát sáng
-            TopAppBar(
+            PulseDeskTopAppBar(
                 agentName = "Nguyễn CSKH (Agent #01)",
                 isTcpOnline = true
             )
@@ -192,15 +196,16 @@ fun PulseDeskApp() {
                                             onSendMessage = { text ->
                                                 selectedConversationId?.let { convId ->
                                                     val newMsg = ChatMessage(
-                                                        id = System.currentTimeMillis().toString(),
+                                                        id = "msg_${System.currentTimeMillis()}",
                                                         conversationId = convId,
                                                         senderType = MessageSenderType.AGENT,
                                                         message = text,
                                                         timestamp = "Vừa xong"
                                                     )
-                                                    val list = chatMessages.getOrPut(convId) { mutableListOf() }
-                                                    list.add(newMsg)
-                                                    // Cập nhật tin nhắn mới nhất
+                                                    val currentList = chatMessages[convId] ?: emptyList()
+                                                    chatMessages[convId] = currentList + newMsg
+                                                    
+                                                    // Cập nhật tin nhắn mới nhất trong danh sách hội thoại
                                                     val idx = conversationList.indexOfFirst { it.id == convId }
                                                     if (idx != -1) {
                                                         conversationList[idx] = conversationList[idx].copy(

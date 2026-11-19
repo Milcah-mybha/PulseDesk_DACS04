@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -28,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pulsedesk.ui.components.glassmorphism
 import com.pulsedesk.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -38,7 +41,9 @@ fun SettingsScreen(
     var autoReconnect by remember { mutableStateOf(true) }
     var agentDisplayName by remember { mutableStateOf("Nguyễn CSKH (Agent #01)") }
     var testResult by remember { mutableStateOf<String?>(null) }
+    var isTestSuccess by remember { mutableStateOf(true) }
     var isTesting by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = modifier
@@ -149,11 +154,28 @@ fun SettingsScreen(
                 modifier = Modifier
                     .shadow(10.dp, RoundedCornerShape(12.dp), spotColor = NeonCyan)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Brush.horizontalGradient(listOf(NeonCyan, Color(0xFF0066FF))))
-                    .clickable {
-                        isTesting = true
-                        testResult = "Đã kết nối thành công tới TCP $serverHost:$serverPort (Độ trễ 1.2ms)!"
-                        isTesting = false
+                    .background(
+                        if (isTesting) Brush.horizontalGradient(listOf(Color(0xFF334155), Color(0xFF475569)))
+                        else Brush.horizontalGradient(listOf(NeonCyan, Color(0xFF0066FF)))
+                    )
+                    .clickable(enabled = !isTesting) {
+                        scope.launch {
+                            isTesting = true
+                            testResult = null
+                            delay(600)
+                            val portNum = serverPort.toIntOrNull()
+                            if (serverHost.isBlank()) {
+                                isTestSuccess = false
+                                testResult = "Vui lòng nhập địa chỉ máy chủ TCP hợp lệ!"
+                            } else if (portNum == null || portNum !in 1..65535) {
+                                isTestSuccess = false
+                                testResult = "Cổng kết nối (Port) không hợp lệ (1-65535)!"
+                            } else {
+                                isTestSuccess = true
+                                testResult = "Đã kết nối thành công tới TCP $serverHost:$serverPort (Độ trễ: 1.2ms)!"
+                            }
+                            isTesting = false
+                        }
                     }
                     .padding(horizontal = 18.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center
@@ -167,7 +189,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Kiểm tra kết nối TCP",
+                        text = if (isTesting) "Đang kiểm tra kết nối..." else "Kiểm tra kết nối TCP",
                         color = Color.White,
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.Bold
@@ -176,15 +198,16 @@ fun SettingsScreen(
             }
 
             testResult?.let { res ->
+                val resultColor = if (isTestSuccess) NeonGreen else StatusError
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.CheckCircle,
+                        imageVector = if (isTestSuccess) Icons.Default.CheckCircle else Icons.Default.Warning,
                         contentDescription = null,
-                        tint = NeonGreen,
+                        tint = resultColor,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = res, color = NeonGreen, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text(text = res, color = resultColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -202,7 +225,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Column(modifier = Modifier.fillMaxWidth(0.6f)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text("Tên hiển thị khi trả lời khách hàng", color = TextMuted, fontSize = 12.5.sp)
             Spacer(modifier = Modifier.height(6.dp))
             SettingsTextField(value = agentDisplayName, onValueChange = { agentDisplayName = it })

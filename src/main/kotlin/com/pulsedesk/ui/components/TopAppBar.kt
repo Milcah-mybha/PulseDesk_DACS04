@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.pulsedesk.ui.theme.*
 
 @Composable
-fun TopAppBar(
+fun PulseDeskTopAppBar(
     agentName: String = "Nguyễn CSKH",
     isTcpOnline: Boolean = true
 ) {
@@ -83,25 +83,29 @@ fun TopAppBar(
 
                 Spacer(modifier = Modifier.width(24.dp))
 
-                // Trạng thái Socket TCP :8888
+                // Trạng thái Socket TCP :8888 (màu sắc động theo isTcpOnline)
+                val statusColor = if (isTcpOnline) NeonGreen else StatusError
+                val statusBg = if (isTcpOnline) Color(0x1800FF88) else Color(0x18FF4D4F)
+                val statusText = if (isTcpOnline) "TCP :8888 Online" else "TCP :8888 Mất kết nối"
+
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0x1800FF88))
-                        .border(0.8.dp, NeonGreen.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .background(statusBg)
+                        .border(0.8.dp, statusColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Wifi,
-                            contentDescription = null,
-                            tint = NeonGreen,
+                            contentDescription = statusText,
+                            tint = statusColor,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = if (isTcpOnline) "TCP :8888 Online" else "TCP :8888 Disconnected",
-                            color = NeonGreen,
+                            text = statusText,
+                            color = statusColor,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
                         )

@@ -50,7 +50,7 @@ fun GlassBottomNavBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DesktopNavTab.values().forEach { tab ->
+            DesktopNavTab.entries.forEach { tab ->
                 val isSelected = tab == selectedTab
 
                 Row(
@@ -74,7 +74,7 @@ fun GlassBottomNavBar(
                             }
                         )
                         .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
+                            interactionSource = remember(tab) { MutableInteractionSource() },
                             indication = null,
                             onClick = { onTabSelected(tab) }
                         )

@@ -23,7 +23,9 @@ val GlassShadow = Color(0x40000000)
 
 val TextWhite = Color(0xFFF8FAFC)
 val TextMuted = Color(0xFFCBD5E1)
-val TextDim = Color(0xFF64748B)
+val TextDim = Color(0xFF94A3B8) // Cải thiện độ tương phản trên nền tối (WCAG AA compliant)
+val StatusError = Color(0xFFFF4D4F)
+val StatusOffline = Color(0xFF64748B)
 
 val AvatarColors = listOf(
     listOf(Color(0xFF0052D4), Color(0xFF4364F7), Color(0xFF6FB1FC)),
