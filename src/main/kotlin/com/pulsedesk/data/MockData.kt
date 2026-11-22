@@ -55,19 +55,6 @@ object MockData {
             isOnline = false,
             isVip = false,
             category = ConversationCategory.ALL
-        ),
-        Conversation(
-            id = "conv_5",
-            customerName = "Le Thi Binh",
-            avatarInitials = "LB",
-            avatarColorIndex = 4,
-            topic = "Billing Issue #9876",
-            lastMessage = "Billing Issue #9876. Least more ...",
-            timestamp = "3m ago",
-            unreadCount = 0,
-            isOnline = false,
-            isVip = false,
-            category = ConversationCategory.ALL
         )
     )
 

@@ -15,8 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,35 +33,14 @@ fun ConversationListCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .then(
-                if (isSelected) {
-                    Modifier
-                        .shadow(12.dp, RoundedCornerShape(18.dp), spotColor = NeonCyan)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    Color(0x3A00F0FF),
-                                    Color(0x200055FF),
-                                    Color(0x18FFFFFF)
-                                )
-                            )
-                        )
-                        .border(
-                            1.2.dp,
-                            Brush.linearGradient(listOf(NeonCyan, Color.White.copy(alpha = 0.8f))),
-                            RoundedCornerShape(18.dp)
-                        )
-                } else {
-                    Modifier
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(Color(0x14FFFFFF))
-                        .border(
-                            0.8.dp,
-                            Color.White.copy(alpha = 0.12f),
-                            RoundedCornerShape(18.dp)
-                        )
-                }
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                if (isSelected) Color(0x2800E5BC) else Color(0x14FFFFFF)
+            )
+            .border(
+                width = if (isSelected) 1.5.dp else 0.8.dp,
+                color = if (isSelected) NeonCyan else Color.White.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(18.dp)
             )
             .clickable(
                 role = androidx.compose.ui.semantics.Role.Button,
