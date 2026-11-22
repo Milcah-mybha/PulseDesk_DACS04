@@ -395,16 +395,13 @@ fun PulseDeskApp() {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // 5. Bottom Navigation Bar tích hợp ngay dưới đáy Panel trái!
+                // 5. Bottom Navigation Bar nằm trực tiếp trên nền panel (không có khung viền mờ hộp bao quanh)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(Color(0x12FFFFFF))
-                        .border(0.8.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(18.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -418,18 +415,19 @@ fun PulseDeskApp() {
                     ) {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(14.dp))
                                 .background(if (isChats) Color(0x3500E5BC) else Color.Transparent)
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                                .padding(horizontal = 14.dp, vertical = 5.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Chat,
                                 contentDescription = "Chats",
                                 tint = if (isChats) NeonTeal else TextDim,
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Chats",
                             color = if (isChats) TextWhite else TextDim,
@@ -448,18 +446,19 @@ fun PulseDeskApp() {
                     ) {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(14.dp))
                                 .background(if (isAi) Color(0x359D4EDD) else Color.Transparent)
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                                .padding(horizontal = 14.dp, vertical = 5.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SmartToy,
                                 contentDescription = "AI Assistant",
                                 tint = if (isAi) NeonPurple else TextDim,
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "AI Assistant",
                             color = if (isAi) TextWhite else TextDim,
@@ -478,18 +477,19 @@ fun PulseDeskApp() {
                     ) {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(14.dp))
                                 .background(if (isSettings) Color(0x3500F0FF) else Color.Transparent)
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                                .padding(horizontal = 14.dp, vertical = 5.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "Settings",
                                 tint = if (isSettings) NeonCyan else TextDim,
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Settings",
                             color = if (isSettings) TextWhite else TextDim,
