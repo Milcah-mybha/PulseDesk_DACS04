@@ -22,6 +22,10 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 
+tasks.named<Jar>("jar") {
+    enabled = true
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
 }
