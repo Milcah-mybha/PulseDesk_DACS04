@@ -42,6 +42,7 @@ fun ChatDetailPane(
     isCustomerTyping: Boolean = false,
     autoReplyEnabled: Boolean = true,
     showCustomerInfo: Boolean = true,
+    assignee: String = "Staff Member",
     onToggleAutoReply: () -> Unit = {},
     onToggleCustomerInfo: () -> Unit = {},
     onSendMessage: (text: String, senderType: MessageSenderType) -> Unit,
@@ -143,7 +144,7 @@ fun ChatDetailPane(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Assignee: Staff Member",
+                            text = "Assignee: $assignee",
                             color = Color.White.copy(alpha = 0.9f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium

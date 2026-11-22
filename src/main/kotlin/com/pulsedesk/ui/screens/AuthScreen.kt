@@ -213,7 +213,12 @@ fun AuthScreen(
                                     if (isStaff) NeonTeal else Color.White.copy(alpha = 0.15f),
                                     RoundedCornerShape(10.dp)
                                 )
-                                .clickable { selectedRole = UserRole.STAFF }
+                                .clickable {
+                                    selectedRole = UserRole.STAFF
+                                    if (loginStaffId == "admin@pulsedesk.vn") {
+                                        loginStaffId = "staff_01@pulsedesk.vn"
+                                    }
+                                }
                                 .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -244,7 +249,12 @@ fun AuthScreen(
                                     if (isAdmin) NeonPurple else Color.White.copy(alpha = 0.15f),
                                     RoundedCornerShape(10.dp)
                                 )
-                                .clickable { selectedRole = UserRole.ADMIN }
+                                .clickable {
+                                    selectedRole = UserRole.ADMIN
+                                    if (loginStaffId == "staff_01@pulsedesk.vn") {
+                                        loginStaffId = "admin@pulsedesk.vn"
+                                    }
+                                }
                                 .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -277,13 +287,14 @@ fun AuthScreen(
                     if (tab == AuthTab.LOG_IN) {
                         // ==================== FORM LOG IN ====================
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            // Staff ID / Work Email
+                            // Staff / Admin ID / Work Email
+                            val isRoleAdmin = selectedRole == UserRole.ADMIN
                             AuthInputField(
-                                label = "Staff ID / Work Email",
+                                label = if (isRoleAdmin) "Admin ID / Work Email" else "Staff ID / Work Email",
                                 value = loginStaffId,
                                 onValueChange = { loginStaffId = it },
-                                placeholder = "e.g. staff_01@pulsedesk.vn",
-                                leadingIcon = Icons.Default.Badge
+                                placeholder = if (isRoleAdmin) "e.g. admin@pulsedesk.vn" else "e.g. staff_01@pulsedesk.vn",
+                                leadingIcon = if (isRoleAdmin) Icons.Default.Security else Icons.Default.Badge
                             )
 
                             Spacer(modifier = Modifier.height(14.dp))
@@ -360,13 +371,14 @@ fun AuthScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            // Staff ID / Work Email
+                            // Staff / Admin ID / Work Email
+                            val isRegRoleAdmin = selectedRole == UserRole.ADMIN
                             AuthInputField(
-                                label = "Staff ID / Email",
+                                label = if (isRegRoleAdmin) "Admin ID / Email" else "Staff ID / Email",
                                 value = regStaffId,
                                 onValueChange = { regStaffId = it },
-                                placeholder = "e.g. an.nguyen@pulsedesk.vn",
-                                leadingIcon = Icons.Default.Badge
+                                placeholder = if (isRegRoleAdmin) "e.g. admin.an@pulsedesk.vn" else "e.g. an.nguyen@pulsedesk.vn",
+                                leadingIcon = if (isRegRoleAdmin) Icons.Default.Security else Icons.Default.Badge
                             )
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -468,7 +480,9 @@ fun AuthScreen(
                                 delay(700)
                                 isAuthenticating = false
                                 onLoginSuccess(
-                                    if (isLogin) loginStaffId else regStaffId.ifBlank { "staff_01@pulsedesk.vn" },
+                                    if (isLogin) loginStaffId else regStaffId.ifBlank {
+                                        if (selectedRole == UserRole.ADMIN) "admin@pulsedesk.vn" else "staff_01@pulsedesk.vn"
+                                    },
                                     selectedRole.title
                                 )
                             }

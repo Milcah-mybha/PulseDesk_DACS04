@@ -568,6 +568,7 @@ fun PulseDeskApp(
                             messages = activeMessages,
                             isCustomerTyping = isCustomerTyping,
                             autoReplyEnabled = autoReplyEnabled,
+                            assignee = userRole,
                             onToggleAutoReply = { autoReplyEnabled = !autoReplyEnabled },
                             onSendMessage = { text, senderType ->
                                 handleSendMessage(text, senderType)
