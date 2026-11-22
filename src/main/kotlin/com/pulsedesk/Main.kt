@@ -1,12 +1,29 @@
 package com.pulsedesk
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -15,16 +32,14 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.pulsedesk.data.MockData
-import com.pulsedesk.model.ChatMessage
-import com.pulsedesk.model.Conversation
-import com.pulsedesk.model.ConversationCategory
-import com.pulsedesk.model.KnowledgeItem
-import com.pulsedesk.model.MessageSenderType
+import com.pulsedesk.model.*
 import com.pulsedesk.network.PulseSocketClient
-import com.pulsedesk.ui.components.*
+import com.pulsedesk.ui.components.DesktopNavTab
+import com.pulsedesk.ui.components.MainContentTab
+import com.pulsedesk.ui.components.PulseDeskRootBackground
+import com.pulsedesk.ui.components.glassmorphism
 import com.pulsedesk.ui.screens.*
-import com.pulsedesk.ui.theme.PulseDeskTheme
-import com.pulsedesk.ui.theme.TextDim
+import com.pulsedesk.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -33,13 +48,13 @@ import java.util.Locale
 
 fun main() = application {
     val windowState = rememberWindowState(
-        size = DpSize(1260.dp, 840.dp),
+        size = DpSize(1260.dp, 820.dp),
         position = WindowPosition.Aligned(Alignment.Center)
     )
 
     Window(
         onCloseRequest = ::exitApplication,
-        title = "PulseDesk - Hệ thống CSKH & Tư vấn nội bộ SME",
+        title = "PulseDesk",
         state = windowState
     ) {
         PulseDeskTheme {
@@ -58,29 +73,14 @@ fun PulseDeskApp() {
     // 2. Trạng thái tab phân loại ("Active Chats" và "Knowledge Base")
     var currentMainTab by remember { mutableStateOf(MainContentTab.ACTIVE_CHATS) }
 
-    // 3. Trạng thái tìm kiếm & bộ lọc
+    // 3. Trạng thái tìm kiếm
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf(ConversationCategory.ALL) }
 
-    // 4. Trạng thái kết nối TCP Socket & Cấu hình hệ thống
-    var serverHost by remember { mutableStateOf("127.0.0.1") }
-    var serverPort by remember { mutableStateOf("8888") }
-    var agentName by remember { mutableStateOf("Nguyễn CSKH (Agent #01)") }
-    var isTcpOnline by remember { mutableStateOf(false) }
-
-    // 5. Trạng thái khách hàng đang gõ & tự động phản hồi
-    var isCustomerTyping by remember { mutableStateOf(false) }
-    var autoReplyEnabled by remember { mutableStateOf(true) }
-
-    // 6. Trạng thái giao diện mở rộng: Hồ sơ khách hàng & Xem chi tiết bài viết tri thức
-    var showCustomerInfoPanel by remember { mutableStateOf(true) }
-    var selectedKbArticle by remember { mutableStateOf<KnowledgeItem?>(null) }
-
-    // 6. Dữ liệu hội thoại mẫu
+    // 4. Dữ liệu hội thoại mẫu (Mặc định chọn Le Thi Binh như trong ảnh)
     val conversationList = remember { mutableStateListOf(*MockData.conversations.toTypedArray()) }
-    var selectedConversationId by remember { mutableStateOf<String?>(MockData.conversations.firstOrNull()?.id) }
+    var selectedConversationId by remember { mutableStateOf<String?>("conv_2") }
 
-    // 7. Lịch sử tin nhắn được quan sát theo danh sách bất biến để recomposition luôn hoạt động
+    // 5. Lịch sử tin nhắn
     val chatMessages = remember {
         mutableStateMapOf<String, List<ChatMessage>>().apply {
             MockData.conversations.forEach { conv ->
@@ -89,7 +89,13 @@ fun PulseDeskApp() {
         }
     }
 
-    // 8. Tích hợp PulseSocketClient kết nối TCP Server thực tế (Port 8888)
+    // 6. Trạng thái Socket TCP & Khách hàng typing
+    var isTcpOnline by remember { mutableStateOf(true) }
+    var isCustomerTyping by remember { mutableStateOf(false) }
+    var autoReplyEnabled by remember { mutableStateOf(true) }
+    var selectedKbArticle by remember { mutableStateOf<KnowledgeItem?>(null) }
+
+    // Socket Client
     val socketClient = remember {
         PulseSocketClient(
             onMessageReceived = { msg ->
@@ -102,7 +108,7 @@ fun PulseDeskApp() {
                     conversationList[idx] = conversationList[idx].copy(
                         lastMessage = msg.message,
                         timestamp = msg.timestamp,
-                        unreadCount = if (isCurrentChat || msg.senderType == MessageSenderType.AGENT) 0 else conversationList[idx].unreadCount + 1
+                        unreadCount = if (isCurrentChat) 0 else conversationList[idx].unreadCount + 1
                     )
                 }
             },
@@ -112,7 +118,6 @@ fun PulseDeskApp() {
         )
     }
 
-    // Thử kết nối TCP Socket ngầm
     LaunchedEffect(Unit) {
         socketClient.connect(host = "127.0.0.1", port = 8888)
     }
@@ -123,38 +128,9 @@ fun PulseDeskApp() {
         }
     }
 
-    // Hàm tạo câu trả lời tự động thông minh của khách hàng theo ngữ cảnh
-    fun generateSimulatedCustomerReply(agentText: String, conversation: Conversation): String {
-        val lower = agentText.lowercase()
-        return when {
-            lower.contains("kiểm tra") || lower.contains("đang xem") || lower.contains("chờ") ->
-                "Dạ vâng em cảm ơn anh, nhờ anh kiểm tra giúp em xem giao dịch đã hoàn tất chưa nhé."
-            lower.contains("mã") || lower.contains("giao dịch") || lower.contains("bill") ->
-                "Dạ mã giao dịch của em là #SME-${(1000..9999).random()}, anh tra cứu trên cổng thanh toán giúp em với nha."
-            lower.contains("khắc phục") || lower.contains("xong") || lower.contains("thành công") ->
-                "Tuyệt vời quá! Em vào thử lại thì đã thấy hoạt động bình thường rồi ạ. Cảm ơn đội ngũ PulseDesk nhiều nhé!"
-            lower.contains("giá") || lower.contains("chiết khấu") || lower.contains("gói") || lower.contains("hợp đồng") ->
-                "Gói bên mình nếu ký hợp đồng 1 năm thì có được tặng thêm tháng dịch vụ hoặc hỗ trợ triển khai API không anh?"
-            lower.contains("xin chào") || lower.contains("chào") || lower.contains("ạ") ->
-                "Dạ chào anh, em đang cần hỗ trợ gấp về phần cấu hình tài khoản doanh nghiệp SME ạ."
-            else -> {
-                val sampleReplies = listOf(
-                    "Dạ em đã nhận được thông tin phản hồi từ anh rồi ạ.",
-                    "Vâng anh, vậy bên kỹ thuật xử lý xong nhớ báo lại em qua đây nhé.",
-                    "Dạ em hiểu rồi, em sẽ chuyển thông tin này cho phòng kế toán đối chiếu ngay.",
-                    "Cảm ơn sự hỗ trợ nhiệt tình và nhanh chóng của PulseDesk ạ!",
-                    "Dạ ngoài ra em muốn hỏi thêm chút về chính sách bảo mật 2 lớp cho nhân viên bên em nữa."
-                )
-                sampleReplies.random()
-            }
-        }
-    }
-
-    // Hàm xử lý gửi tin nhắn 2 chiều (Tư vấn viên <-> Khách hàng)
     fun handleSendMessage(text: String, senderType: MessageSenderType) {
         val convId = selectedConversationId ?: return
-        val currentConv = conversationList.find { it.id == convId } ?: return
-        val nowTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+        val nowTime = "Vừa xong"
 
         val newMsg = ChatMessage(
             id = "msg_${System.currentTimeMillis()}",
@@ -167,47 +143,36 @@ fun PulseDeskApp() {
         val currentList = chatMessages[convId] ?: emptyList()
         chatMessages[convId] = currentList + newMsg
 
-        // Cập nhật danh sách hội thoại
         val idx = conversationList.indexOfFirst { it.id == convId }
         if (idx != -1) {
             conversationList[idx] = conversationList[idx].copy(
                 lastMessage = text,
-                timestamp = nowTime,
-                unreadCount = if (senderType == MessageSenderType.CUSTOMER && convId != selectedConversationId) {
-                    conversationList[idx].unreadCount + 1
-                } else 0
+                timestamp = "Just now"
             )
         }
 
-        // Bắn tin nhắn qua TCP Socket nếu đang kết nối
         socketClient.sendMessage(convId, senderType, text)
 
-        // Nếu gửi từ Tư vấn viên (AGENT) và chế độ tự động phản hồi bật -> Giả lập khách hàng đang gõ và trả lời lại
+        // Phản hồi tự động
         if (senderType == MessageSenderType.AGENT && autoReplyEnabled) {
             scope.launch {
-                delay(800) // Đợi 800ms trước khi hiện đang gõ
-                isCustomerTyping = true
-                delay(1600) // Khách hàng soạn tin nhắn trong 1.6s
-                isCustomerTyping = false
-
-                val replyText = generateSimulatedCustomerReply(text, currentConv)
-                val replyTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                delay(1200)
+                val replyText = "Thank you! I will wait for your update."
                 val customerMsg = ChatMessage(
                     id = "cust_${System.currentTimeMillis()}",
                     conversationId = convId,
                     senderType = MessageSenderType.CUSTOMER,
                     message = replyText,
-                    timestamp = replyTime
+                    timestamp = "Just now"
                 )
-
-                val updatedList = chatMessages[convId] ?: emptyList()
-                chatMessages[convId] = updatedList + customerMsg
+                val updated = chatMessages[convId] ?: emptyList()
+                chatMessages[convId] = updated + customerMsg
 
                 val cIdx = conversationList.indexOfFirst { it.id == convId }
                 if (cIdx != -1) {
                     conversationList[cIdx] = conversationList[cIdx].copy(
                         lastMessage = replyText,
-                        timestamp = replyTime
+                        timestamp = "Just now"
                     )
                 }
             }
@@ -217,206 +182,368 @@ fun PulseDeskApp() {
     val selectedConversation = conversationList.find { it.id == selectedConversationId }
     val activeMessages = selectedConversationId?.let { chatMessages[it] } ?: emptyList()
 
-    // Lọc danh sách hội thoại tối ưu với derivedStateOf
     val filteredConversations by remember {
         derivedStateOf {
             conversationList.filter { conv ->
-                val matchCat = when (selectedCategory) {
-                    ConversationCategory.ALL -> true
-                    ConversationCategory.UNREAD -> conv.unreadCount > 0
-                    ConversationCategory.VIP -> conv.isVip
-                    ConversationCategory.IN_PROGRESS -> conv.category == ConversationCategory.IN_PROGRESS
-                }
-                val matchQuery = searchQuery.isBlank() ||
+                searchQuery.isBlank() ||
                         conv.customerName.contains(searchQuery, true) ||
                         conv.topic.contains(searchQuery, true) ||
                         conv.lastMessage.contains(searchQuery, true)
-                matchCat && matchQuery
             }
         }
     }
 
     PulseDeskRootBackground {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp)
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // Yêu cầu 3: Thanh tiêu đề (App Bar) với PulseDesk, avatar nhân viên & chấm xanh Online phát sáng
-            PulseDeskTopAppBar(
-                agentName = agentName,
-                isTcpOnline = isTcpOnline
-            )
+            // ==================== PANEL BÊN TRÁI (LEFT SIDEBAR) ====================
+            Column(
+                modifier = Modifier
+                    .width(330.dp)
+                    .fillMaxHeight()
+                    .glassmorphism(shape = RoundedCornerShape(26.dp), shadowElevation = 18.dp)
+                    .padding(18.dp)
+            ) {
+                // 1. Header (Logo "PulseDesk" & Avatar Online)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "PulseDesk",
+                        color = TextWhite,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.3.sp
+                    )
 
-            Spacer(modifier = Modifier.height(14.dp))
+                    // Avatar tròn hình người + Chấm xanh "● Online"
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x22FFFFFF))
+                                .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(NeonGreen)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Online",
+                                color = NeonGreen,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
 
-            // Nội dung chính thay đổi theo thanh điều hướng
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                when (currentNavTab) {
-                    DesktopNavTab.CHATS -> {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            // Yêu cầu 4: Thanh tìm kiếm (Search Bar) và 2 tab phân loại
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                GlassSearchBar(
-                                    query = searchQuery,
-                                    onQueryChange = { searchQuery = it },
-                                    modifier = Modifier.weight(1.3f)
-                                )
+                Spacer(modifier = Modifier.height(14.dp))
 
-                                GlassMainCategoryTabs(
-                                    selectedTab = currentMainTab,
-                                    onTabSelected = { currentMainTab = it },
-                                    activeChatsCount = conversationList.size,
-                                    kbArticlesCount = MockData.knowledgeBase.size,
-                                    modifier = Modifier.weight(1f)
+                // 2. Search Bar dạng Pill tròn
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(19.dp))
+                        .background(Color(0x18FFFFFF))
+                        .border(0.8.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(19.dp))
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = TextDim,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search chats...",
+                                    color = TextDim,
+                                    fontSize = 12.5.sp
                                 )
                             }
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                textStyle = TextStyle(color = TextWhite, fontSize = 12.5.sp),
+                                cursorBrush = SolidColor(NeonCyan),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                            when (currentMainTab) {
-                                MainContentTab.ACTIVE_CHATS -> {
-                                    // Bố cục Master-Detail Desktop cho Active Chats
-                                    Row(
-                                        modifier = Modifier.fillMaxSize(),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
-                                        // Cột 1: Danh sách hội thoại kính mờ dạng cuộn dọc
-                                        Column(
-                                            modifier = Modifier
-                                                .width(360.dp)
-                                                .fillMaxHeight()
-                                        ) {
-                                            // Bộ lọc phân loại (Tất cả, Chưa đọc, Khách VIP, Đang xử lý)
-                                            GlassFilterPills(
-                                                selectedCategory = selectedCategory,
-                                                onCategorySelected = { selectedCategory = it }
-                                            )
-
-                                            Spacer(modifier = Modifier.height(10.dp))
-
-                                            // Yêu cầu 5: LazyColumn với các thẻ hội thoại Glassmorphism
-                                            if (filteredConversations.isEmpty()) {
-                                                Box(
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(
-                                                        text = "Không tìm thấy cuộc hội thoại nào phù hợp.",
-                                                        color = TextDim,
-                                                        fontSize = 13.sp
-                                                    )
-                                                }
-                                            } else {
-                                                LazyColumn(
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                                                ) {
-                                                    items(
-                                                        items = filteredConversations,
-                                                        key = { it.id }
-                                                    ) { conv ->
-                                                        ConversationListCard(
-                                                            conversation = conv,
-                                                            isSelected = conv.id == selectedConversationId,
-                                                            onClick = {
-                                                                selectedConversationId = conv.id
-                                                                // Đánh dấu đã đọc khi chọn
-                                                                val index = conversationList.indexOfFirst { it.id == conv.id }
-                                                                if (index != -1 && conversationList[index].unreadCount > 0) {
-                                                                    conversationList[index] = conversationList[index].copy(unreadCount = 0)
-                                                                }
-                                                            }
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        // Cột 2: Khung chi tiết cuộc trò chuyện và gửi tin nhắn 2 chiều
-                                        ChatDetailPane(
-                                            conversation = selectedConversation,
-                                            messages = activeMessages,
-                                            isCustomerTyping = isCustomerTyping,
-                                            autoReplyEnabled = autoReplyEnabled,
-                                            showCustomerInfo = showCustomerInfoPanel,
-                                            onToggleAutoReply = { autoReplyEnabled = !autoReplyEnabled },
-                                            onToggleCustomerInfo = { showCustomerInfoPanel = !showCustomerInfoPanel },
-                                            onSendMessage = { text, senderType ->
-                                                handleSendMessage(text, senderType)
-                                            },
-                                            modifier = Modifier.weight(1f)
-                                        )
-
-                                        // Cột 3: Bảng hồ sơ thông tin khách hàng doanh nghiệp SME
-                                        if (showCustomerInfoPanel && selectedConversation != null) {
-                                            CustomerInfoPanel(
-                                                conversation = selectedConversation,
-                                                onClose = { showCustomerInfoPanel = false }
-                                            )
-                                        }
-                                    }
-                                }
-
-                                MainContentTab.KNOWLEDGE_BASE -> {
-                                    // Yêu cầu 4 (Tab 2): Màn hình cơ sở tri thức nội bộ
-                                    KnowledgeBaseScreen(
-                                        articles = MockData.knowledgeBase,
-                                        searchQuery = searchQuery,
-                                        onArticleClick = { article ->
-                                            selectedKbArticle = article
-                                        }
-                                    )
-                                }
-                            }
+                // 3. Category Tabs ("Active Chats" & "Knowledge Base")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    // Tab Active Chats
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clickable { currentMainTab = MainContentTab.ACTIVE_CHATS }
+                            .padding(bottom = 6.dp)
+                    ) {
+                        Text(
+                            text = "Active Chats",
+                            color = if (currentMainTab == MainContentTab.ACTIVE_CHATS) TextWhite else TextDim,
+                            fontSize = 13.sp,
+                            fontWeight = if (currentMainTab == MainContentTab.ACTIVE_CHATS) FontWeight.Bold else FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        // Gạch chân phát sáng khi tab đang active
+                        if (currentMainTab == MainContentTab.ACTIVE_CHATS) {
+                            Box(
+                                modifier = Modifier
+                                    .width(60.dp)
+                                    .height(2.5.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(NeonCyan)
+                            )
+                        } else {
+                            Box(modifier = Modifier.height(2.5.dp))
                         }
                     }
 
-                    DesktopNavTab.AI_ASSISTANT -> {
-                        // Yêu cầu 6 (Mục 2): AI Assistant (hỏi đáp RAG kèm nguồn tham khảo)
-                        AiAssistantScreen()
+                    // Tab Knowledge Base
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clickable { currentMainTab = MainContentTab.KNOWLEDGE_BASE }
+                            .padding(bottom = 6.dp)
+                    ) {
+                        Text(
+                            text = "Knowledge Base",
+                            color = if (currentMainTab == MainContentTab.KNOWLEDGE_BASE) TextWhite else TextDim,
+                            fontSize = 13.sp,
+                            fontWeight = if (currentMainTab == MainContentTab.KNOWLEDGE_BASE) FontWeight.Bold else FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        if (currentMainTab == MainContentTab.KNOWLEDGE_BASE) {
+                            Box(
+                                modifier = Modifier
+                                    .width(70.dp)
+                                    .height(2.5.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(NeonCyan)
+                            )
+                        } else {
+                            Box(modifier = Modifier.height(2.5.dp))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 4. Danh sách các cuộc hội thoại (LazyColumn)
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    if (currentMainTab == MainContentTab.ACTIVE_CHATS) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(items = filteredConversations, key = { it.id }) { conv ->
+                                ConversationListCard(
+                                    conversation = conv,
+                                    isSelected = conv.id == selectedConversationId,
+                                    onClick = {
+                                        selectedConversationId = conv.id
+                                        val index = conversationList.indexOfFirst { it.id == conv.id }
+                                        if (index != -1 && conversationList[index].unreadCount > 0) {
+                                            conversationList[index] = conversationList[index].copy(unreadCount = 0)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    } else {
+                        // Knowledge Base Screen
+                        KnowledgeBaseScreen(
+                            articles = MockData.knowledgeBase,
+                            searchQuery = searchQuery,
+                            onArticleClick = { selectedKbArticle = it }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 5. Bottom Navigation Bar tích hợp ngay dưới đáy Panel trái!
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color(0x12FFFFFF))
+                        .border(0.8.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(18.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Mục Chats
+                    val isChats = currentNavTab == DesktopNavTab.CHATS
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clickable { currentNavTab = DesktopNavTab.CHATS }
+                            .padding(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isChats) Color(0x3500E5BC) else Color.Transparent)
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = "Chats",
+                                tint = if (isChats) NeonTeal else TextDim,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                        Text(
+                            text = "Chats",
+                            color = if (isChats) TextWhite else TextDim,
+                            fontSize = 10.5.sp,
+                            fontWeight = if (isChats) FontWeight.Bold else FontWeight.Normal
+                        )
                     }
 
-                    DesktopNavTab.SETTINGS -> {
-                        // Yêu cầu 6 (Mục 3): Settings (cấu hình IP/Port kết nối TCP Server)
-                        SettingsScreen(
-                            initialHost = serverHost,
-                            initialPort = serverPort,
-                            initialAgentName = agentName,
-                            onSaveSettings = { host, port, name ->
-                                serverHost = host
-                                serverPort = port
-                                agentName = name
-                                val portNum = port.toIntOrNull() ?: 8888
-                                socketClient.connect(host, portNum)
-                            }
+                    // Mục AI Assistant
+                    val isAi = currentNavTab == DesktopNavTab.AI_ASSISTANT
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clickable { currentNavTab = DesktopNavTab.AI_ASSISTANT }
+                            .padding(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isAi) Color(0x359D4EDD) else Color.Transparent)
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SmartToy,
+                                contentDescription = "AI Assistant",
+                                tint = if (isAi) NeonPurple else TextDim,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                        Text(
+                            text = "AI Assistant",
+                            color = if (isAi) TextWhite else TextDim,
+                            fontSize = 10.5.sp,
+                            fontWeight = if (isAi) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+
+                    // Mục Settings
+                    val isSettings = currentNavTab == DesktopNavTab.SETTINGS
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clickable { currentNavTab = DesktopNavTab.SETTINGS }
+                            .padding(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSettings) Color(0x3500F0FF) else Color.Transparent)
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = if (isSettings) NeonCyan else TextDim,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                        Text(
+                            text = "Settings",
+                            color = if (isSettings) TextWhite else TextDim,
+                            fontSize = 10.5.sp,
+                            fontWeight = if (isSettings) FontWeight.Bold else FontWeight.Normal
                         )
                     }
                 }
             }
 
-            // Hộp thoại xem chi tiết tài liệu cơ sở tri thức
-            selectedKbArticle?.let { article ->
-                KnowledgeDetailDialog(
-                    article = article,
-                    onDismiss = { selectedKbArticle = null },
-                    onApplyToChat = { summaryText ->
-                        handleSendMessage(summaryText, MessageSenderType.AGENT)
-                        currentMainTab = MainContentTab.ACTIVE_CHATS
+            // ==================== PANEL BÊN PHẢI (MAIN CONTENT / CHAT PANE) ====================
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                when (currentNavTab) {
+                    DesktopNavTab.CHATS -> {
+                        ChatDetailPane(
+                            conversation = selectedConversation,
+                            messages = activeMessages,
+                            isCustomerTyping = isCustomerTyping,
+                            autoReplyEnabled = autoReplyEnabled,
+                            onToggleAutoReply = { autoReplyEnabled = !autoReplyEnabled },
+                            onSendMessage = { text, senderType ->
+                                handleSendMessage(text, senderType)
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
-                )
+                    DesktopNavTab.AI_ASSISTANT -> {
+                        AiAssistantScreen(modifier = Modifier.fillMaxSize())
+                    }
+                    DesktopNavTab.SETTINGS -> {
+                        SettingsScreen(
+                            onSaveSettings = { host, port, _ ->
+                                socketClient.connect(host, port.toIntOrNull() ?: 8888)
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
             }
+        }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Yêu cầu 6: Thanh điều hướng ở dưới gồm 3 mục (Chats, AI Assistant, Settings)
-            GlassBottomNavBar(
-                selectedTab = currentNavTab,
-                onTabSelected = { currentNavTab = it }
+        // Hộp thoại xem bài viết tri thức nếu có
+        selectedKbArticle?.let { article ->
+            KnowledgeDetailDialog(
+                article = article,
+                onDismiss = { selectedKbArticle = null },
+                onApplyToChat = { summary ->
+                    handleSendMessage(summary, MessageSenderType.AGENT)
+                    currentMainTab = MainContentTab.ACTIVE_CHATS
+                }
             )
         }
     }
