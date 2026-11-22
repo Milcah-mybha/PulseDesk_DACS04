@@ -539,60 +539,61 @@ private fun AuthInputField(
             fontWeight = FontWeight.Medium
         )
         Spacer(modifier = Modifier.height(5.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(42.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0x18FFFFFF))
-                .border(0.8.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = leadingIcon,
-                    contentDescription = null,
-                    tint = TextDim,
-                    modifier = Modifier.size(16.dp)
-                )
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            textStyle = TextStyle(color = TextWhite, fontSize = 13.sp),
+            cursorBrush = SolidColor(NeonCyan),
+            singleLine = true,
+            visualTransformation = if (isPassword && !isPasswordVisible) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = if (isPassword) KeyboardOptions(keyboardType = KeyboardType.Password) else KeyboardOptions.Default,
+            modifier = Modifier.fillMaxWidth(),
+            decorationBox = { innerTextField ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0x18FFFFFF))
+                        .border(0.8.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        tint = TextDim,
+                        modifier = Modifier.size(16.dp)
+                    )
 
-                Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
-                Box(modifier = Modifier.weight(1f)) {
-                    if (value.isEmpty()) {
-                        Text(
-                            text = placeholder,
-                            color = TextDim,
-                            fontSize = 13.sp
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (value.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                color = TextDim,
+                                fontSize = 13.sp
+                            )
+                        }
+                        innerTextField()
+                    }
+
+                    if (isPassword && onTogglePasswordVisibility != null) {
+                        Icon(
+                            imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = "Toggle password",
+                            tint = TextDim,
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable { onTogglePasswordVisibility() }
                         )
                     }
-                    BasicTextField(
-                        value = value,
-                        onValueChange = onValueChange,
-                        textStyle = TextStyle(color = TextWhite, fontSize = 13.sp),
-                        cursorBrush = SolidColor(NeonCyan),
-                        singleLine = true,
-                        visualTransformation = if (isPassword && !isPasswordVisible) PasswordVisualTransformation() else VisualTransformation.None,
-                        keyboardOptions = if (isPassword) KeyboardOptions(keyboardType = KeyboardType.Password) else KeyboardOptions.Default,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                if (isPassword && onTogglePasswordVisibility != null) {
-                    Icon(
-                        imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = "Toggle password",
-                        tint = TextDim,
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clickable { onTogglePasswordVisibility() }
-                    )
                 }
             }
-        }
+        )
     }
 }

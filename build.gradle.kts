@@ -24,6 +24,10 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.pulsedesk.MainKt"
+        jvmArgs(
+            "-Dawt.useSystemAAFontSettings=on",
+            "-Dswing.aatext=true"
+        )
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Rpm)
             packageName = "PulseDesk"
