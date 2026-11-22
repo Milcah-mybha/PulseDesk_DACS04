@@ -47,7 +47,35 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-fun main() = application {
+import com.pulsedesk.server.PulseDeskServerApplication
+import java.net.InetSocketAddress
+import java.net.Socket
+import kotlin.concurrent.thread
+
+fun main() {
+    // Tự động khởi động Spring Boot Backend Server (MongoDB Atlas + Socket 8888 + REST API) trong background
+    try {
+        val isAlreadyRunning = try {
+            Socket().use { s ->
+                s.connect(InetSocketAddress("127.0.0.1", 8888), 350)
+                true
+            }
+        } catch (_: Exception) {
+            false
+        }
+
+        if (!isAlreadyRunning) {
+            thread(isDaemon = true, name = "EmbeddedPulseDeskServer") {
+                try {
+                    PulseDeskServerApplication.main(emptyArray())
+                } catch (e: Exception) {
+                    println("[PulseDesk] Embedded Server notice: ${e.message}")
+                }
+            }
+        }
+    } catch (_: Exception) {}
+
+    application {
     val windowState = rememberWindowState(
         size = DpSize(1260.dp, 820.dp),
         position = WindowPosition.Aligned(Alignment.Center)
@@ -80,6 +108,7 @@ fun main() = application {
             }
         }
     }
+}
 }
 
 @Composable
