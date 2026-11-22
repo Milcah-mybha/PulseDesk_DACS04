@@ -238,8 +238,8 @@ fun PulseDeskApp(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        AppLogo(size = 30.dp)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        AppLogo(size = 38.dp)
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "PulseDesk",
                             color = TextWhite,
