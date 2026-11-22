@@ -7,8 +7,9 @@ spring:
 
   data:
     mongodb:
-      # Hỗ trợ cấu hình qua URI đầy đủ hoặc các tham số host/port/database riêng lẻ
-      uri: ${MONGODB_URI:mongodb://localhost:27017/pulsedesk?authSource=${MONGODB_AUTH_SOURCE:admin}}
+      # Kết nối trực tiếp tới MongoDB Atlas Cluster0 của PulseDesk
+      # Kết nối trực tiếp tới MongoDB Atlas Cluster0 của PulseDesk
+      uri: ${MONGODB_URI:mongodb+srv://buihamy2006_db_user:RSFXUkFgsrW3oeCH@cluster0.0bo9ldx.mongodb.net/pulsedesk?authSource=admin&retryWrites=true&w=majority}
       database: ${MONGODB_DATABASE:pulsedesk}
       # Tự động tạo index theo khai báo @Indexed và @CompoundIndex trong Document
       auto-index-creation: true
