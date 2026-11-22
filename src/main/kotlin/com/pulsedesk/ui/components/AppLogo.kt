@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -35,7 +36,7 @@ object LogoLoader {
 @Composable
 fun AppLogo(
     modifier: Modifier = Modifier,
-    size: Dp = 40.dp
+    size: Dp = 28.dp
 ) {
     val bitmap = remember { LogoLoader.getLogoBitmap() }
     if (bitmap != null) {
@@ -43,6 +44,7 @@ fun AppLogo(
             bitmap = bitmap,
             contentDescription = "PulseDesk Logo",
             contentScale = ContentScale.Fit,
+            filterQuality = FilterQuality.High,
             modifier = modifier.size(size)
         )
     }

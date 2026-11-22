@@ -39,9 +39,9 @@ fun PulseDeskTopAppBar(
         ) {
             // Logo & Tiêu đề PulseDesk
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AppLogo(size = 40.dp)
+                AppLogo(size = 28.dp)
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(9.dp))
 
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {

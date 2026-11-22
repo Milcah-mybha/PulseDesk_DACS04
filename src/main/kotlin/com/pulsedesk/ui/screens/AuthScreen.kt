@@ -93,9 +93,9 @@ fun AuthScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    AppLogo(size = 64.dp)
+                    AppLogo(size = 38.dp)
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
