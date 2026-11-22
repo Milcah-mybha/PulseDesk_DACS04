@@ -54,17 +54,39 @@ fun main() = application {
 
     Window(
         onCloseRequest = ::exitApplication,
-        title = "PulseDesk",
+        title = "PulseDesk - Hệ thống CSKH & Tư vấn nội bộ SME",
         state = windowState
     ) {
         PulseDeskTheme {
-            PulseDeskApp()
+            var isAuthenticated by remember { mutableStateOf(false) }
+            var loggedStaffId by remember { mutableStateOf("staff_01@pulsedesk.vn") }
+            var loggedUserRole by remember { mutableStateOf("Staff Member") }
+
+            if (!isAuthenticated) {
+                AuthScreen(
+                    onLoginSuccess = { staffId, role ->
+                        loggedStaffId = staffId
+                        loggedUserRole = role
+                        isAuthenticated = true
+                    }
+                )
+            } else {
+                PulseDeskApp(
+                    staffId = loggedStaffId,
+                    userRole = loggedUserRole,
+                    onLogOut = { isAuthenticated = false }
+                )
+            }
         }
     }
 }
 
 @Composable
-fun PulseDeskApp() {
+fun PulseDeskApp(
+    staffId: String = "staff_01@pulsedesk.vn",
+    userRole: String = "Staff Member",
+    onLogOut: () -> Unit = {}
+) {
     val scope = rememberCoroutineScope()
 
     // 1. Trạng thái điều hướng chính (Chats, AI Assistant, Settings)
@@ -222,37 +244,65 @@ fun PulseDeskApp() {
                         letterSpacing = 0.3.sp
                     )
 
-                    // Avatar tròn hình người + Chấm xanh "● Online"
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Avatar tròn hình người + Chấm xanh "● Online" & Nút Đăng xuất
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onLogOut() }
+                                .padding(2.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x22FFFFFF))
+                                    .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(NeonGreen)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Online",
+                                    color = NeonGreen,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Nút Đăng xuất nhanh
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(28.dp)
                                 .clip(CircleShape)
-                                .background(Color(0x22FFFFFF))
-                                .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape),
+                                .background(Color(0x18FFFFFF))
+                                .border(0.8.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                                .clickable { onLogOut() },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(NeonGreen)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Online",
-                                color = NeonGreen,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium
+                                imageVector = Icons.Default.Logout,
+                                contentDescription = "Log Out",
+                                tint = TextMuted,
+                                modifier = Modifier.size(14.dp)
                             )
                         }
                     }
