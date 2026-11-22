@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pulsedesk.ui.components.AppLogo
 import com.pulsedesk.ui.components.PulseDeskRootBackground
 import com.pulsedesk.ui.components.glassmorphism
 import com.pulsedesk.ui.theme.*
@@ -92,23 +93,9 @@ fun AuthScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .shadow(12.dp, CircleShape, spotColor = NeonCyan)
-                            .clip(CircleShape)
-                            .background(Brush.linearGradient(listOf(NeonCyan, Color(0xFF0066FF)))),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "P",
-                            color = Color.White,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Black
-                        )
-                    }
+                    AppLogo(size = 52.dp)
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
 
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {

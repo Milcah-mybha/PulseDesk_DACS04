@@ -39,21 +39,7 @@ fun PulseDeskTopAppBar(
         ) {
             // Logo & Tiêu đề PulseDesk
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .shadow(10.dp, CircleShape, spotColor = NeonCyan)
-                        .clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(NeonCyan, Color(0xFF0066FF)))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "P",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                }
+                AppLogo(size = 40.dp)
 
                 Spacer(modifier = Modifier.width(12.dp))
 

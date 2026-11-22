@@ -34,6 +34,7 @@ import androidx.compose.ui.window.rememberWindowState
 import com.pulsedesk.data.MockData
 import com.pulsedesk.model.*
 import com.pulsedesk.network.PulseSocketClient
+import com.pulsedesk.ui.components.AppLogo
 import com.pulsedesk.ui.components.DesktopNavTab
 import com.pulsedesk.ui.components.MainContentTab
 import com.pulsedesk.ui.components.PulseDeskRootBackground
@@ -236,13 +237,17 @@ fun PulseDeskApp(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "PulseDesk",
-                        color = TextWhite,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.3.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AppLogo(size = 30.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "PulseDesk",
+                            color = TextWhite,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.3.sp
+                        )
+                    }
 
                     // Avatar tròn hình người + Chấm xanh "● Online" & Nút Đăng xuất
                     Row(verticalAlignment = Alignment.CenterVertically) {
