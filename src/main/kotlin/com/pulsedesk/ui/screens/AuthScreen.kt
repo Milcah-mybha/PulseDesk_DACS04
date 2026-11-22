@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pulsedesk.network.PulseAuthApiClient
 import com.pulsedesk.ui.components.AppLogo
 import com.pulsedesk.ui.components.PulseDeskRootBackground
 import com.pulsedesk.ui.components.glassmorphism
@@ -452,6 +453,35 @@ fun AuthScreen(
                     }
                 }
 
+                // Thông báo lỗi nếu có
+                if (statusMessage != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x35FF4444))
+                            .border(0.8.dp, Color(0xFFFF5252).copy(alpha = 0.7f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFFF6B6B),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = statusMessage ?: "",
+                                color = Color(0xFFFFEEEE),
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(18.dp))
 
                 // 6. Nút Đăng nhập / Đăng ký
@@ -476,15 +506,47 @@ fun AuthScreen(
                         .clickable(enabled = !isAuthenticating) {
                             scope.launch {
                                 isAuthenticating = true
-                                statusMessage = "Verifying Nonce Signature via TCP Socket..."
-                                delay(700)
-                                isAuthenticating = false
-                                onLoginSuccess(
-                                    if (isLogin) loginStaffId else regStaffId.ifBlank {
-                                        if (selectedRole == UserRole.ADMIN) "admin@pulsedesk.vn" else "staff_01@pulsedesk.vn"
-                                    },
-                                    selectedRole.title
-                                )
+                                statusMessage = null
+                                if (isLogin) {
+                                    val res = PulseAuthApiClient.login(loginStaffId, loginPassword)
+                                    isAuthenticating = false
+                                    if (res.success) {
+                                        onLoginSuccess(
+                                            res.email ?: loginStaffId,
+                                            res.role ?: selectedRole.title
+                                        )
+                                    } else {
+                                        statusMessage = res.errorMessage ?: "Đăng nhập thất bại!"
+                                    }
+                                } else {
+                                    // Đăng ký tài khoản mới lên MongoDB Atlas
+                                    if (regFullName.isBlank() || regStaffId.isBlank() || regPassword.isBlank()) {
+                                        isAuthenticating = false
+                                        statusMessage = "Vui lòng nhập đầy đủ Họ tên, Email và Mật khẩu!"
+                                        return@launch
+                                    }
+                                    if (regPassword != regConfirmPassword) {
+                                        isAuthenticating = false
+                                        statusMessage = "Mật khẩu xác nhận không khớp!"
+                                        return@launch
+                                    }
+                                    val res = PulseAuthApiClient.register(
+                                        fullName = regFullName,
+                                        email = regStaffId,
+                                        staffId = regStaffId,
+                                        password = regPassword,
+                                        role = selectedRole.name
+                                    )
+                                    isAuthenticating = false
+                                    if (res.success) {
+                                        onLoginSuccess(
+                                            res.email ?: regStaffId,
+                                            res.role ?: selectedRole.title
+                                        )
+                                    } else {
+                                        statusMessage = res.errorMessage ?: "Đăng ký thất bại!"
+                                    }
+                                }
                             }
                         },
                     contentAlignment = Alignment.Center
@@ -492,7 +554,7 @@ fun AuthScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isAuthenticating) {
                             Text(
-                                text = "Authenticating...",
+                                text = "Đang kết nối MongoDB Atlas...",
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold

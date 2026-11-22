@@ -111,6 +111,31 @@ public class DatabaseService {
     }
 
     /**
+     * Đăng ký tài khoản người dùng mới và lưu trực tiếp vào MongoDB Atlas.
+     */
+    public CompletableFuture<UserDocument> registerUserAsync(
+            String fullName,
+            String email,
+            String staffId,
+            String rawPassword,
+            UserRole role) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (userRepository.existsByEmail(email)) {
+                throw new IllegalArgumentException("Email '" + email + "' đã tồn tại trong hệ thống!");
+            }
+            if (staffId != null && !staffId.isBlank() && userRepository.existsByStaffId(staffId)) {
+                throw new IllegalArgumentException("Mã nhân viên / ID '" + staffId + "' đã tồn tại!");
+            }
+
+            String hashed = passwordEncoder.encode(rawPassword);
+            UserDocument newUser = new UserDocument(email, staffId, fullName, hashed, role);
+            UserDocument saved = userRepository.save(newUser);
+            log.info("🎉 Đã tạo và lưu người dùng mới vào MongoDB Atlas: {} (Role: {})", saved.getEmail(), saved.getRole());
+            return saved;
+        }, dbExecutor);
+    }
+
+    /**
      * Lưu tin nhắn thời gian thực và cập nhật đồng thời trạng thái của Conversation
      * (tin nhắn cuối, thời gian cuối, tăng unreadCount).
      */

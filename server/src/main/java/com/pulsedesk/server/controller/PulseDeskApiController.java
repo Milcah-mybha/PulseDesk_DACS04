@@ -87,6 +87,50 @@ public class PulseDeskApiController {
     }
 
     /**
+     * 3. API Đăng ký người dùng mới và lưu trực tiếp vào MongoDB Atlas
+     */
+    @PostMapping("/auth/register")
+    public CompletableFuture<ResponseEntity<Map<String, Object>>> register(@RequestBody Map<String, String> request) {
+        String fullName = request.getOrDefault("fullName", "").trim();
+        String email = request.getOrDefault("email", "").trim();
+        String staffId = request.getOrDefault("staffId", "").trim();
+        String password = request.getOrDefault("password", "");
+        String roleStr = request.getOrDefault("role", "STAFF").toUpperCase();
+
+        if (email.isBlank() || password.isBlank() || fullName.isBlank()) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body(Map.of("error", "Vui lòng điền đầy đủ Họ tên, Email và Mật khẩu!"))
+            );
+        }
+
+        UserRole role = UserRole.STAFF;
+        try {
+            role = UserRole.valueOf(roleStr);
+        } catch (Exception ignored) {}
+
+        return databaseService.registerUserAsync(fullName, email, staffId.isEmpty() ? null : staffId, password, role)
+                .<ResponseEntity<Map<String, Object>>>handle((user, ex) -> {
+                    if (ex != null) {
+                        String errMsg = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
+                        return ResponseEntity.badRequest().body(Map.of(
+                                "status", "FAILED",
+                                "error", errMsg != null ? errMsg : "Lỗi đăng ký"
+                        ));
+                    }
+                    return ResponseEntity.ok(Map.of(
+                            "status", "SUCCESS",
+                            "message", "Đăng ký thành công và đã lưu vào MongoDB Atlas!",
+                            "id", user.getId(),
+                            "email", user.getEmail(),
+                            "staffId", user.getStaffId() != null ? user.getStaffId() : "",
+                            "fullName", user.getFullName(),
+                            "role", user.getRole().name(),
+                            "roleTitle", user.getRole().getDescription()
+                    ));
+                });
+    }
+
+    /**
      * 3. Lấy danh sách cuộc hội thoại / ticket CSKH
      */
     @GetMapping("/conversations")
