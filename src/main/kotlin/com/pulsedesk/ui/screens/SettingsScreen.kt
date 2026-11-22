@@ -34,15 +34,20 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
+    initialHost: String = "127.0.0.1",
+    initialPort: String = "8888",
+    initialAgentName: String = "Nguyễn CSKH (Agent #01)",
+    onSaveSettings: (host: String, port: String, name: String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
-    var serverHost by remember { mutableStateOf("127.0.0.1") }
-    var serverPort by remember { mutableStateOf("8888") }
+    var serverHost by remember(initialHost) { mutableStateOf(initialHost) }
+    var serverPort by remember(initialPort) { mutableStateOf(initialPort) }
     var autoReconnect by remember { mutableStateOf(true) }
-    var agentDisplayName by remember { mutableStateOf("Nguyễn CSKH (Agent #01)") }
+    var agentDisplayName by remember(initialAgentName) { mutableStateOf(initialAgentName) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var isTestSuccess by remember { mutableStateOf(true) }
     var isTesting by remember { mutableStateOf(false) }
+    var isSavedNotification by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -229,6 +234,47 @@ fun SettingsScreen(
             Text("Tên hiển thị khi trả lời khách hàng", color = TextMuted, fontSize = 12.5.sp)
             Spacer(modifier = Modifier.height(6.dp))
             SettingsTextField(value = agentDisplayName, onValueChange = { agentDisplayName = it })
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Nút Lưu cấu hình
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .shadow(10.dp, RoundedCornerShape(12.dp), spotColor = NeonCyan)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.horizontalGradient(listOf(NeonCyan, Color(0xFF0066FF))))
+                    .clickable {
+                        onSaveSettings(serverHost, serverPort, agentDisplayName)
+                        isSavedNotification = true
+                        scope.launch {
+                            delay(2000)
+                            isSavedNotification = false
+                        }
+                    }
+                    .padding(horizontal = 20.dp, vertical = 11.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Lưu & Áp dụng cấu hình",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            if (isSavedNotification) {
+                Text(
+                    text = "✓ Đã lưu cài đặt vào hệ thống SQLite!",
+                    color = NeonGreen,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }

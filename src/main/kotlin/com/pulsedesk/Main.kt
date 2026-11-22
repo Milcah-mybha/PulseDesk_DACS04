@@ -18,6 +18,7 @@ import com.pulsedesk.data.MockData
 import com.pulsedesk.model.ChatMessage
 import com.pulsedesk.model.Conversation
 import com.pulsedesk.model.ConversationCategory
+import com.pulsedesk.model.KnowledgeItem
 import com.pulsedesk.model.MessageSenderType
 import com.pulsedesk.network.PulseSocketClient
 import com.pulsedesk.ui.components.*
@@ -61,12 +62,19 @@ fun PulseDeskApp() {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(ConversationCategory.ALL) }
 
-    // 4. Trạng thái kết nối TCP Socket
+    // 4. Trạng thái kết nối TCP Socket & Cấu hình hệ thống
+    var serverHost by remember { mutableStateOf("127.0.0.1") }
+    var serverPort by remember { mutableStateOf("8888") }
+    var agentName by remember { mutableStateOf("Nguyễn CSKH (Agent #01)") }
     var isTcpOnline by remember { mutableStateOf(false) }
 
     // 5. Trạng thái khách hàng đang gõ & tự động phản hồi
     var isCustomerTyping by remember { mutableStateOf(false) }
     var autoReplyEnabled by remember { mutableStateOf(true) }
+
+    // 6. Trạng thái giao diện mở rộng: Hồ sơ khách hàng & Xem chi tiết bài viết tri thức
+    var showCustomerInfoPanel by remember { mutableStateOf(true) }
+    var selectedKbArticle by remember { mutableStateOf<KnowledgeItem?>(null) }
 
     // 6. Dữ liệu hội thoại mẫu
     val conversationList = remember { mutableStateListOf(*MockData.conversations.toTypedArray()) }
@@ -236,7 +244,7 @@ fun PulseDeskApp() {
         ) {
             // Yêu cầu 3: Thanh tiêu đề (App Bar) với PulseDesk, avatar nhân viên & chấm xanh Online phát sáng
             PulseDeskTopAppBar(
-                agentName = "Nguyễn CSKH (Agent #01)",
+                agentName = agentName,
                 isTcpOnline = isTcpOnline
             )
 
@@ -335,12 +343,22 @@ fun PulseDeskApp() {
                                             messages = activeMessages,
                                             isCustomerTyping = isCustomerTyping,
                                             autoReplyEnabled = autoReplyEnabled,
+                                            showCustomerInfo = showCustomerInfoPanel,
                                             onToggleAutoReply = { autoReplyEnabled = !autoReplyEnabled },
+                                            onToggleCustomerInfo = { showCustomerInfoPanel = !showCustomerInfoPanel },
                                             onSendMessage = { text, senderType ->
                                                 handleSendMessage(text, senderType)
                                             },
                                             modifier = Modifier.weight(1f)
                                         )
+
+                                        // Cột 3: Bảng hồ sơ thông tin khách hàng doanh nghiệp SME
+                                        if (showCustomerInfoPanel && selectedConversation != null) {
+                                            CustomerInfoPanel(
+                                                conversation = selectedConversation,
+                                                onClose = { showCustomerInfoPanel = false }
+                                            )
+                                        }
                                     }
                                 }
 
@@ -349,7 +367,9 @@ fun PulseDeskApp() {
                                     KnowledgeBaseScreen(
                                         articles = MockData.knowledgeBase,
                                         searchQuery = searchQuery,
-                                        onArticleClick = { /* Chi tiết bài viết */ }
+                                        onArticleClick = { article ->
+                                            selectedKbArticle = article
+                                        }
                                     )
                                 }
                             }
@@ -363,9 +383,32 @@ fun PulseDeskApp() {
 
                     DesktopNavTab.SETTINGS -> {
                         // Yêu cầu 6 (Mục 3): Settings (cấu hình IP/Port kết nối TCP Server)
-                        SettingsScreen()
+                        SettingsScreen(
+                            initialHost = serverHost,
+                            initialPort = serverPort,
+                            initialAgentName = agentName,
+                            onSaveSettings = { host, port, name ->
+                                serverHost = host
+                                serverPort = port
+                                agentName = name
+                                val portNum = port.toIntOrNull() ?: 8888
+                                socketClient.connect(host, portNum)
+                            }
+                        )
                     }
                 }
+            }
+
+            // Hộp thoại xem chi tiết tài liệu cơ sở tri thức
+            selectedKbArticle?.let { article ->
+                KnowledgeDetailDialog(
+                    article = article,
+                    onDismiss = { selectedKbArticle = null },
+                    onApplyToChat = { summaryText ->
+                        handleSendMessage(summaryText, MessageSenderType.AGENT)
+                        currentMainTab = MainContentTab.ACTIVE_CHATS
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(14.dp))

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.Icon
@@ -52,7 +53,9 @@ fun ChatDetailPane(
     messages: List<ChatMessage>,
     isCustomerTyping: Boolean = false,
     autoReplyEnabled: Boolean = true,
+    showCustomerInfo: Boolean = true,
     onToggleAutoReply: () -> Unit = {},
+    onToggleCustomerInfo: () -> Unit = {},
     onSendMessage: (text: String, senderType: MessageSenderType) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -119,7 +122,9 @@ fun ChatDetailPane(
             conversation = conversation,
             isTyping = isCustomerTyping,
             autoReplyEnabled = autoReplyEnabled,
-            onToggleAutoReply = onToggleAutoReply
+            showCustomerInfo = showCustomerInfo,
+            onToggleAutoReply = onToggleAutoReply,
+            onToggleCustomerInfo = onToggleCustomerInfo
         )
 
         // 2. Chat Message List
@@ -378,7 +383,9 @@ private fun ChatHeader(
     conversation: Conversation,
     isTyping: Boolean,
     autoReplyEnabled: Boolean,
-    onToggleAutoReply: () -> Unit
+    showCustomerInfo: Boolean,
+    onToggleAutoReply: () -> Unit,
+    onToggleCustomerInfo: () -> Unit
 ) {
     val gradientColors = AvatarColors[conversation.avatarColorIndex % AvatarColors.size]
 
@@ -481,6 +488,38 @@ private fun ChatHeader(
                     Text(
                         text = if (autoReplyEnabled) "Tự động phản hồi: BẬT" else "Tự động phản hồi: TẮT",
                         color = if (autoReplyEnabled) NeonCyan else TextDim,
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Nút bật/tắt Panel thông tin khách hàng
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (showCustomerInfo) NeonPurple.copy(alpha = 0.25f) else Color(0x18FFFFFF))
+                    .border(
+                        0.8.dp,
+                        if (showCustomerInfo) NeonPurple.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.2f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clickable { onToggleCustomerInfo() }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Hồ sơ",
+                        tint = if (showCustomerInfo) NeonPurple else TextDim,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Hồ sơ SME",
+                        color = if (showCustomerInfo) TextWhite else TextDim,
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.SemiBold
                     )

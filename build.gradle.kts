@@ -18,6 +18,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.8.1")
     implementation("org.json:json:20240303")
+    implementation("org.xerial:sqlite-jdbc:3.45.1.0")
 }
 
 compose.desktop {
